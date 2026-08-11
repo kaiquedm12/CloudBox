@@ -1,0 +1,50 @@
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+!.mvn/wrapper/maven-wrapper.jar
+dependency-reduced-pom.xml
+
+# Spring Boot
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.log
+logs/
+spring.log
+
+# Node.js
+node_modules/
+dist/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE / Editores
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+bin/
+build/
+
+# SO
+.DS_Store
+Thumbs.db
+*.swp
+
+# Ambiente
+.env
+.env.*
+!.env.example
+*.local
