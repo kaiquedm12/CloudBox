@@ -1,4 +1,4 @@
-package com.cloudbox.master.domain;
+package com.cloudbox.master.security;
 
 import java.time.Instant;
 import java.util.UUID;

@@ -1,1 +1,42 @@
-# Placeholder: este arquivo vai simular multiplos nos (agentes) e o orquestrador (master) localmente.
+services:
+  postgres:
+    image: postgres:16
+    container_name: cloudbox-postgres
+    environment:
+      POSTGRES_DB: cloudbox
+      POSTGRES_USER: cloudbox
+      POSTGRES_PASSWORD: cloudbox
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+# Para simular multiplos "nos" localmente basta subir varias instancias do
+# servico cloudbox-agent (build a partir de cloudbox-agent/Dockerfile), cada
+# uma com nome e variaveis de ambiente diferentes. Isso fica para uma issue
+# futura - nao foi implementado agora.
+#
+# Exemplo (como ficara na issue futura):
+#   cloudbox-agent-1:
+#     build:
+#       context: .
+#       dockerfile: cloudbox-agent/Dockerfile
+#     container_name: cloudbox-agent-1
+#     environment:
+#       AGENT_NAME: "no-1"
+#     volumes:
+#       - /var/run/docker.sock:/var/run/docker.sock
+#       - /:/host/rootfs:ro
+#   cloudbox-agent-2:
+#     build:
+#       context: .
+#       dockerfile: cloudbox-agent/Dockerfile
+#     container_name: cloudbox-agent-2
+#     environment:
+#       AGENT_NAME: "no-2"
+#     volumes:
+#       - /var/run/docker.sock:/var/run/docker.sock
+#       - /:/host/rootfs:ro
+
+volumes:
+  pgdata:

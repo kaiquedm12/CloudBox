@@ -1,4 +1,4 @@
-package com.cloudbox.master.domain;
+package com.cloudbox.master.node;
 
 import java.math.BigDecimal;
 import java.time.Instant;
