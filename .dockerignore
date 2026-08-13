@@ -1,0 +1,10 @@
+.git
+.idea
+target
+**/target
+node_modules
+.next
+docs
+*.class
+*.log
+.env

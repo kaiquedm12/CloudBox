@@ -1,4 +1,4 @@
-package com.cloudbox.master.domain;
+package com.cloudbox.master.container;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import com.cloudbox.master.node.Node;
 
 @Entity
 @Table(name = "container_instances")
