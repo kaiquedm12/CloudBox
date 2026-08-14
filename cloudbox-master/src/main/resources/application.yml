@@ -22,3 +22,8 @@ management:
   endpoint:
     health:
       show-details: always
+
+cloudbox:
+  heartbeat:
+    timeout-seconds: 30
+    check-interval-seconds: 10
