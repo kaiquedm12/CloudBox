@@ -11,5 +11,6 @@ public record ContainerResponse(
         Integer memoryMb,
         Integer diskMb,
         ContainerStatus status,
+        UUID nodeId,
         Instant createdAt) {
 }

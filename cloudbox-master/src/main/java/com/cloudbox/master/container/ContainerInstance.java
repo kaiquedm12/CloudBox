@@ -38,6 +38,9 @@ public class ContainerInstance {
     @Column(name = "status", nullable = false, length = 30)
     private ContainerStatus status;
 
+    @Column(name = "node_id")
+    private UUID nodeId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -102,6 +105,14 @@ public class ContainerInstance {
 
     public void setStatus(ContainerStatus status) {
         this.status = status;
+    }
+
+    public UUID getNodeId() {
+        return nodeId;
+    }
+
+    public void setNodeId(UUID nodeId) {
+        this.nodeId = nodeId;
     }
 
     public Instant getCreatedAt() {
