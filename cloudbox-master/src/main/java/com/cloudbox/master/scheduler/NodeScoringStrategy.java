@@ -20,9 +20,9 @@ NodeScoringStrategy {
         if (scoreCmp != 0) {
             return scoreCmp;
         }
-        int ramCmp = Integer.compare(
-                a.getRamFreeMb() - ramRequestedMb,
-                b.getRamFreeMb() - ramRequestedMb);
+        int ramCmp = Long.compare(
+                (long) a.getRamFreeMb() - ramRequestedMb,
+                (long) b.getRamFreeMb() - ramRequestedMb);
         if (ramCmp != 0) {
             return ramCmp;
         }
@@ -34,7 +34,8 @@ NodeScoringStrategy {
     }
 
     private BigDecimal ramSlack(Node node, Integer ramRequestedMb) {
-        BigDecimal slack = BigDecimal.valueOf(node.getRamFreeMb() - ramRequestedMb);
+        long slackValue = (long) node.getRamFreeMb() - ramRequestedMb;
+        BigDecimal slack = BigDecimal.valueOf(slackValue);
         if (node.getRamTotalMb() == null || node.getRamTotalMb() == 0) {
             return slack;
         }
