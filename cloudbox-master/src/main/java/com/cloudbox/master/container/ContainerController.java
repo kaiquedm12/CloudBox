@@ -1,6 +1,8 @@
 package com.cloudbox.master.container;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,9 +25,13 @@ public class ContainerController {
     }
 
     @PostMapping
-    public ResponseEntity<ContainerResponse> create(@Valid @RequestBody ContainerRequest request) {
-        ContainerResponse response = containerService.create(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public ResponseEntity<?> create(@Valid @RequestBody ContainerRequest request) {
+        Optional<ContainerResponse> response = containerService.create(request);
+        if (response.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Nenhum nó disponível com recursos suficientes no momento"));
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response.get());
     }
 
     @GetMapping
