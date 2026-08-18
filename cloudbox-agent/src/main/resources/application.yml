@@ -1,0 +1,10 @@
+cloudbox:
+  agent:
+    master-url: ${CLOUDBOX_MASTER_URL:http://localhost:8080}
+    name: ${AGENT_NAME:${HOSTNAME:cloudbox-agent}}
+    token-file: ${AGENT_TOKEN_FILE:${user.home}/.cloudbox/agent-credentials.properties}
+    heartbeat-interval: ${AGENT_HEARTBEAT_INTERVAL:10000}
+    heartbeat-initial-delay: ${AGENT_HEARTBEAT_INITIAL_DELAY:2000}
+    metrics:
+      interval: ${AGENT_METRICS_INTERVAL:5000}
+      initial-delay: ${AGENT_METRICS_INITIAL_DELAY:1000}
