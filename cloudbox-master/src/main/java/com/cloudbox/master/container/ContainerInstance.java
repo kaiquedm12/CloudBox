@@ -41,6 +41,12 @@ public class ContainerInstance {
     @Column(name = "node_id")
     private UUID nodeId;
 
+    @Column(name = "docker_container_id", length = 255)
+    private String dockerContainerId;
+
+    @Column(name = "error_message", columnDefinition = "text")
+    private String errorMessage;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -113,6 +119,22 @@ public class ContainerInstance {
 
     public void setNodeId(UUID nodeId) {
         this.nodeId = nodeId;
+    }
+
+    public String getDockerContainerId() {
+        return dockerContainerId;
+    }
+
+    public void setDockerContainerId(String dockerContainerId) {
+        this.dockerContainerId = dockerContainerId;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
     }
 
     public Instant getCreatedAt() {
