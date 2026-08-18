@@ -12,8 +12,8 @@
 #     -v /:/host/rootfs:ro \
 #     <registry>/cloudbox-agent:<tag>
 #
-# (Coleta de metricas e integracao com o Docker ainda nao implementadas -
-#  escopo de issues futuras.)
+# A coleta de metricas e a integracao com o Docker Engine usam os recursos
+# montados do host.
 #
 # Build a partir da raiz do repositorio:
 #   docker build -f cloudbox-agent/Dockerfile -t cloudbox-agent .

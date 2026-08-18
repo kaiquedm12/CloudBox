@@ -5,6 +5,13 @@ cloudbox:
     token-file: ${AGENT_TOKEN_FILE:${user.home}/.cloudbox/agent-credentials.properties}
     heartbeat-interval: ${AGENT_HEARTBEAT_INTERVAL:10000}
     heartbeat-initial-delay: ${AGENT_HEARTBEAT_INITIAL_DELAY:2000}
+    docker:
+      host: ${DOCKER_HOST:unix:///var/run/docker.sock}
+      connection-timeout: ${DOCKER_CONNECTION_TIMEOUT:5s}
+      response-timeout: ${DOCKER_RESPONSE_TIMEOUT:30s}
+      validation:
+        enabled: ${DOCKER_VALIDATION_ENABLED:false}
+        image: ${DOCKER_VALIDATION_IMAGE:nginx:alpine}
     metrics:
       interval: ${AGENT_METRICS_INTERVAL:5000}
       initial-delay: ${AGENT_METRICS_INITIAL_DELAY:1000}
