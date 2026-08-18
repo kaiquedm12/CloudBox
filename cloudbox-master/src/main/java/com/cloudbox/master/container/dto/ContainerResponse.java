@@ -12,5 +12,7 @@ public record ContainerResponse(
         Integer diskMb,
         ContainerStatus status,
         UUID nodeId,
+        String dockerContainerId,
+        String errorMessage,
         Instant createdAt) {
 }
