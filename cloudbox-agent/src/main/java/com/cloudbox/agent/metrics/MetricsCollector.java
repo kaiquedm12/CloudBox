@@ -54,6 +54,10 @@ public class MetricsCollector {
                 availableTemperature(sensors.getCpuTemperature()));
     }
 
+    public int logicalProcessorCount() {
+        return processor.getLogicalProcessorCount();
+    }
+
     static double clampPercent(double value) {
         if (!Double.isFinite(value)) {
             return 0.0;
