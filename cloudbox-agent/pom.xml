@@ -15,10 +15,30 @@
     <name>cloudbox-agent</name>
     <description>Agente CloudBox - roda em cada maquina do cluster</description>
 
+    <properties>
+        <oshi.version>6.6.5</oshi.version>
+        <docker-java.version>3.4.1</docker-java.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.oshi</groupId>
+            <artifactId>oshi-core</artifactId>
+            <version>${oshi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java-core</artifactId>
+            <version>${docker-java.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java-transport-httpclient5</artifactId>
+            <version>${docker-java.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
