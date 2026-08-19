@@ -5,6 +5,8 @@ cloudbox:
     token-file: ${AGENT_TOKEN_FILE:${user.home}/.cloudbox/agent-credentials.properties}
     heartbeat-interval: ${AGENT_HEARTBEAT_INTERVAL:10000}
     heartbeat-initial-delay: ${AGENT_HEARTBEAT_INITIAL_DELAY:2000}
+    command-poll-interval: ${AGENT_COMMAND_POLL_INTERVAL:5000}
+    command-poll-initial-delay: ${AGENT_COMMAND_POLL_INITIAL_DELAY:3000}
     docker:
       host: ${DOCKER_HOST:unix:///var/run/docker.sock}
       connection-timeout: ${DOCKER_CONNECTION_TIMEOUT:5s}

@@ -23,6 +23,7 @@ class OrchestratorClientTest {
     private final AtomicReference<String> registrationBody = new AtomicReference<>();
     private final AtomicReference<String> heartbeatBody = new AtomicReference<>();
     private final AtomicReference<String> authorization = new AtomicReference<>();
+    private final AtomicReference<String> statusBody = new AtomicReference<>();
     private final UUID nodeId = UUID.randomUUID();
 
     @BeforeEach
@@ -36,6 +37,16 @@ class OrchestratorClientTest {
             authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
             heartbeatBody.set(readBody(exchange));
             respond(exchange, 204, "");
+        });
+        server.createContext("/api/nodes/" + nodeId + "/pending-commands", exchange -> {
+            authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            respond(exchange, 200, "[{\"containerId\":\"" + nodeId
+                    + "\",\"imageName\":\"nginx:alpine\",\"cpuCores\":1,\"memoryMb\":64,\"diskMb\":128}]");
+        });
+        server.createContext("/api/containers/" + nodeId + "/status", exchange -> {
+            authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            statusBody.set(readBody(exchange));
+            respond(exchange, 200, "{}");
         });
         server.start();
 
@@ -73,6 +84,24 @@ class OrchestratorClientTest {
                 .contains("\"ramFreeMb\":12000")
                 .contains("\"diskFreeMb\":150000")
                 .contains("\"temperatureCelsius\":null");
+    }
+
+    @Test
+    void shouldReadPendingCommandsWithBearerToken() {
+        assertThat(client.pendingCommands(nodeId, "agent-token"))
+                .containsExactly(new PendingCommand(nodeId, "nginx:alpine", 1, 64, 128));
+        assertThat(authorization.get()).isEqualTo("Bearer agent-token");
+    }
+
+    @Test
+    void shouldReportContainerStatusWithBearerToken() {
+        client.updateContainerStatus(nodeId, "agent-token",
+                new ContainerStatusUpdateRequest("RUNNING", "docker-123", null));
+
+        assertThat(authorization.get()).isEqualTo("Bearer agent-token");
+        assertThat(statusBody.get())
+                .contains("\"status\":\"RUNNING\"")
+                .contains("\"dockerContainerId\":\"docker-123\"");
     }
 
     private static String readBody(HttpExchange exchange) throws IOException {

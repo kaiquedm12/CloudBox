@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 
 @Service
@@ -32,6 +33,19 @@ public class ContainerExecutionService {
                 .withName(name)
                 .exec();
         return response.getId();
+    }
+
+    public String runContainer(String image, String name, int cpuCores, int memoryMb) {
+        pullImage(image);
+        CreateContainerResponse response = dockerClient.createContainerCmd(image)
+                .withName(name)
+                .withHostConfig(HostConfig.newHostConfig()
+                        .withNanoCPUs(cpuCores * 1_000_000_000L)
+                        .withMemory(memoryMb * 1024L * 1024L))
+                .exec();
+        String containerId = response.getId();
+        startContainer(containerId);
+        return containerId;
     }
 
     public void startContainer(String containerId) {
