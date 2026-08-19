@@ -1,0 +1,516 @@
+openapi: 3.0.3
+info:
+  title: CloudBox Master API
+  description: |
+    API do orquestrador CloudBox: registro de nós, heartbeat, agendamento de
+    containers, comandos pendentes e atualização de status.
+
+    O fluxo típico é:
+    1. Um **agente** registra um nó em `POST /api/nodes/register` e recebe um `token`.
+    2. O agente envia **heartbeats** periódicos com os recursos livres do nó.
+    3. Um **cliente** solicita a criação de um container em `POST /api/containers`.
+    4. O orquestrador agenda o container em um nó disponível e o agente busca os
+       **comandos pendentes** em `GET /api/nodes/{id}/pending-commands`.
+    5. O agente executa a imagem e reporta o resultado em `POST /api/containers/{id}/status`.
+
+    Endpoints protegidos por token do agente usam o header
+    `Authorization: Bearer {token}` (schema **AgentToken**).
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080
+    description: Ambiente local (padrão do orquestrador)
+tags:
+  - name: Nodes
+    description: Registro, listagem e heartbeat dos nós (agentes) no orquestrador.
+  - name: Containers
+    description: Criação, listagem e atualização de status dos containers.
+  - name: Agent Commands
+    description: Comandos pendentes consumidos pelos agentes.
+paths:
+  /api/nodes/register:
+    post:
+      tags:
+        - Nodes
+      summary: Registra um novo nó
+      description: >
+        Registra um nó (agente) informando nome e capacidade total de CPU, RAM e disco.
+        Retorna o `id` do nó e o `token` que o agente deve usar nos endpoints protegidos
+        (pending-commands e status de containers).
+      operationId: registerNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeRegisterRequest'
+      responses:
+        '201':
+          description: Nó registrado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeRegisterResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/nodes:
+    get:
+      tags:
+        - Nodes
+      summary: Lista os nós registrados
+      description: Retorna todos os nós registrados no orquestrador com seus recursos e status atual.
+      operationId: listNodes
+      responses:
+        '200':
+          description: Lista de nós
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NodeResponse'
+  /api/nodes/{id}/heartbeat:
+    post:
+      tags:
+        - Nodes
+      summary: Envia o heartbeat de um nó
+      description: >
+        Atualiza os recursos livres e a temperatura informados pelo nó. Usado pelo agente
+        para manter o nó marcado como ONLINE.
+      operationId: sendHeartbeat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador do nó
+          schema:
+            type: string
+            format: uuid
+            example: 9b6c1f7e-8a2d-4c5f-9e3a-7d0b4a1c2d5f
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+      responses:
+        '204':
+          description: Heartbeat recebido com sucesso
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/nodes/{id}/pending-commands:
+    get:
+      tags:
+        - Agent Commands
+      summary: Lista os comandos pendentes de um nó
+      description: >
+        Retorna todos os containers com status PENDING alocados ao nó informado, para que
+        o agente saiba o que executar. Se não houver comandos pendentes, retorna uma lista vazia.
+      operationId: getPendingCommands
+      security:
+        - AgentToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador do nó
+          schema:
+            type: string
+            format: uuid
+            example: 9b6c1f7e-8a2d-4c5f-9e3a-7d0b4a1c2d5f
+      responses:
+        '200':
+          description: Lista de comandos pendentes (pode ser vazia)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PendingCommandResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/containers:
+    post:
+      tags:
+        - Containers
+      summary: Cria um container
+      description: >
+        Solicita a criação de um container a partir de uma imagem Docker, reservando CPU,
+        memória e disco. O orquestrador agenda o container em um nó com recursos suficientes.
+      operationId: createContainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContainerRequest'
+      responses:
+        '201':
+          description: Container criado e agendado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Nenhum nó disponível com recursos suficientes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Nenhum nó disponível com recursos suficientes no momento
+    get:
+      tags:
+        - Containers
+      summary: Lista os containers
+      description: Retorna todos os containers criados no orquestrador.
+      operationId: listContainers
+      responses:
+        '200':
+          description: Lista de containers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContainerResponse'
+  /api/containers/{id}/status:
+    post:
+      tags:
+        - Containers
+      summary: Atualiza o status de um container reportado pelo agente
+      description: >
+        Permite que o agente reporte o resultado da execução de um container: RUNNING
+        (preenchendo `dockerContainerId`), ERROR (preenchendo `errorMessage`) ou STOPPED.
+        PENDING não é aceito neste endpoint. Requer o token do nó que possui o container.
+      operationId: updateContainerStatus
+      security:
+        - AgentToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador do container
+          schema:
+            type: string
+            format: uuid
+            example: 0c0f7c3d-7a4e-4f1b-9b1c-3e2d5a6b7c8d
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContainerStatusUpdateRequest'
+      responses:
+        '200':
+          description: Status atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    AgentToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Token do nó gerado no registro. Enviar como Authorization: Bearer {token}'
+  responses:
+    BadRequest:
+      description: Requisição inválida
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: mensagem do erro de validação
+    Unauthorized:
+      description: Token ausente, inválido ou não pertence ao recurso
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: token inválido ou expirado
+    NotFound:
+      description: Recurso não encontrado
+  schemas:
+    NodeRegisterRequest:
+      type: object
+      required:
+        - name
+        - cpuTotal
+        - ramTotalMb
+        - diskTotalMb
+      properties:
+        name:
+          type: string
+          description: Nome identificador do nó
+          example: rpi-01
+        cpuTotal:
+          type: number
+          format: double
+          minimum: 0
+          description: Capacidade total de CPU em núcleos (fracionário permitido)
+          example: 4.0
+        ramTotalMb:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Capacidade total de memória em MB
+          example: 8192
+        diskTotalMb:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Capacidade total de disco em MB
+          example: 51200
+    NodeRegisterResponse:
+      type: object
+      required:
+        - id
+        - token
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador do nó recém-registrado
+          example: 9b6c1f7e-8a2d-4c5f-9e3a-7d0b4a1c2d5f
+        token:
+          type: string
+          description: Token de autenticação do nó (usar nos endpoints protegidos)
+          example: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5YjZjMWY3ZS0xIn0.example
+    NodeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 9b6c1f7e-8a2d-4c5f-9e3a-7d0b4a1c2d5f
+        name:
+          type: string
+          example: rpi-01
+        status:
+          $ref: '#/components/schemas/NodeStatus'
+        cpuTotal:
+          type: number
+          format: double
+          example: 4.0
+        cpuFree:
+          type: number
+          format: double
+          description: CPU livre conforme último heartbeat
+          example: 3.2
+        ramTotalMb:
+          type: integer
+          format: int32
+          example: 8192
+        ramFreeMb:
+          type: integer
+          format: int32
+          description: RAM livre em MB conforme último heartbeat
+          example: 6144
+        diskTotalMb:
+          type: integer
+          format: int32
+          example: 51200
+        diskFreeMb:
+          type: integer
+          format: int32
+          description: Disco livre em MB conforme último heartbeat
+          example: 40960
+        temperatureCelsius:
+          type: number
+          format: double
+          nullable: true
+          description: Temperatura do nó conforme último heartbeat
+          example: 58.5
+        lastHeartbeat:
+          type: string
+          format: date-time
+          nullable: true
+          description: Data do último heartbeat recebido
+          example: 2026-08-18T14:30:00Z
+    NodeStatus:
+      type: string
+      description: Status de conectividade do nó
+      enum:
+        - ONLINE
+        - OFFLINE
+    HeartbeatRequest:
+      type: object
+      required:
+        - cpuFree
+        - ramFreeMb
+        - diskFreeMb
+      properties:
+        cpuFree:
+          type: number
+          format: double
+          minimum: 0
+          description: CPU livre em núcleos (fracionário permitido)
+          example: 3.2
+        ramFreeMb:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Memória livre em MB
+          example: 6144
+        diskFreeMb:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Disco livre em MB
+          example: 40960
+        temperatureCelsius:
+          type: number
+          format: double
+          minimum: 0
+          description: Temperatura do nó em graus Celsius (opcional)
+          example: 58.5
+    ContainerRequest:
+      type: object
+      required:
+        - imageName
+        - cpuCores
+        - memoryMb
+        - diskMb
+      properties:
+        imageName:
+          type: string
+          description: Nome da imagem Docker a executar
+          example: nginx:1.27
+        cpuCores:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Número de núcleos de CPU reservados
+          example: 1
+        memoryMb:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Memória reservada em MB
+          example: 512
+        diskMb:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Disco reservado em MB
+          example: 128
+    ContainerResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 0c0f7c3d-7a4e-4f1b-9b1c-3e2d5a6b7c8d
+        imageName:
+          type: string
+          example: nginx:1.27
+        cpuCores:
+          type: integer
+          format: int32
+          example: 1
+        memoryMb:
+          type: integer
+          format: int32
+          example: 512
+        diskMb:
+          type: integer
+          format: int32
+          example: 128
+        status:
+          $ref: '#/components/schemas/ContainerStatus'
+        nodeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Nó ao qual o container foi agendado
+          example: 9b6c1f7e-8a2d-4c5f-9e3a-7d0b4a1c2d5f
+        dockerContainerId:
+          type: string
+          nullable: true
+          description: Identificador do container no Docker (quando RUNNING)
+          example: f3b5c6d7e8a901234567890abcdef0123456789abcdef0123456789abcdef01234
+        errorMessage:
+          type: string
+          nullable: true
+          description: Mensagem de erro quando a execução falhou
+          example: "falha ao puxar imagem: manifest unknown"
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-08-18T14:31:00Z
+    ContainerStatus:
+      type: string
+      enum:
+        - PENDING
+        - SCHEDULED
+        - RUNNING
+        - STOPPED
+        - ERROR
+        - FAILED
+    ContainerStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Novo status do container. Aceita apenas RUNNING, ERROR ou STOPPED — PENDING não é aceito neste endpoint.
+          enum:
+            - RUNNING
+            - ERROR
+            - STOPPED
+          example: RUNNING
+        dockerContainerId:
+          type: string
+          description: Identificador do container no Docker, obrigatório quando o status é RUNNING
+          example: f3b5c6d7e8a901234567890abcdef0123456789abcdef0123456789abcdef01234
+        errorMessage:
+          type: string
+          description: Mensagem de erro, preenchida quando o status é ERROR
+          example: "falha ao puxar imagem: manifest unknown"
+    PendingCommandResponse:
+      type: object
+      properties:
+        containerId:
+          type: string
+          format: uuid
+          description: Identificador do container no orquestrador
+          example: 0c0f7c3d-7a4e-4f1b-9b1c-3e2d5a6b7c8d
+        imageName:
+          type: string
+          description: Nome da imagem Docker a executar
+          example: nginx:1.27
+        cpuCores:
+          type: integer
+          format: int32
+          description: Número de núcleos de CPU reservados
+          example: 1
+        memoryMb:
+          type: integer
+          format: int32
+          description: Memória reservada em MB
+          example: 512
+        diskMb:
+          type: integer
+          format: int32
+          description: Disco reservado em MB
+          example: 128
