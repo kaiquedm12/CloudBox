@@ -14,6 +14,7 @@ import com.cloudbox.master.container.dto.ContainerResponse;
 import com.cloudbox.master.container.dto.ContainerStatusUpdateRequest;
 import com.cloudbox.master.container.dto.PendingCommandResponse;
 import com.cloudbox.master.node.Node;
+import com.cloudbox.master.realtime.ClusterStatusPublisher;
 import com.cloudbox.master.scheduler.SchedulerService;
 
 @Service
@@ -24,10 +25,13 @@ public class ContainerService {
 
     private final ContainerRepository containerRepository;
     private final SchedulerService schedulerService;
+    private final ClusterStatusPublisher clusterStatusPublisher;
 
-    public ContainerService(ContainerRepository containerRepository, SchedulerService schedulerService) {
+    public ContainerService(ContainerRepository containerRepository, SchedulerService schedulerService,
+                            ClusterStatusPublisher clusterStatusPublisher) {
         this.containerRepository = containerRepository;
         this.schedulerService = schedulerService;
+        this.clusterStatusPublisher = clusterStatusPublisher;
     }
 
     @Transactional
@@ -73,6 +77,7 @@ public class ContainerService {
                     "Status inválido: " + request.status() + ". O agente só pode reportar RUNNING, ERROR ou STOPPED.");
         }
 
+        ContainerStatus previousStatus = container.getStatus();
         container.setStatus(request.status());
         if (request.dockerContainerId() != null && !request.dockerContainerId().isBlank()) {
             container.setDockerContainerId(request.dockerContainerId());
@@ -81,6 +86,9 @@ public class ContainerService {
             container.setErrorMessage(request.errorMessage());
         }
         container.setUpdatedAt(Instant.now());
+        if (previousStatus != request.status()) {
+            clusterStatusPublisher.publishContainerStatusChange(container.getId(), previousStatus, request.status());
+        }
         return toResponse(container);
     }
 

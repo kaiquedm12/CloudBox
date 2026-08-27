@@ -3,6 +3,7 @@ package com.cloudbox.master.container;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import java.time.Instant;
 import java.util.List;
@@ -16,6 +17,7 @@ import com.cloudbox.master.common.ResourceNotFoundException;
 import com.cloudbox.master.container.dto.ContainerStatusUpdateRequest;
 import com.cloudbox.master.container.dto.PendingCommandResponse;
 import com.cloudbox.master.scheduler.SchedulerService;
+import com.cloudbox.master.realtime.ClusterStatusPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class ContainerServiceTest {
@@ -26,8 +28,11 @@ class ContainerServiceTest {
     @Mock
     private SchedulerService schedulerService;
 
+    @Mock
+    private ClusterStatusPublisher clusterStatusPublisher;
+
     private ContainerService containerService() {
-        return new ContainerService(containerRepository, schedulerService);
+        return new ContainerService(containerRepository, schedulerService, clusterStatusPublisher);
     }
 
     private ContainerInstance container(UUID id, UUID nodeId, ContainerStatus status) {
@@ -87,6 +92,8 @@ class ContainerServiceTest {
         assertThat(container.getStatus()).isEqualTo(ContainerStatus.RUNNING);
         assertThat(container.getDockerContainerId()).isEqualTo("abc123");
         assertThat(container.getUpdatedAt()).isNotNull();
+        verify(clusterStatusPublisher).publishContainerStatusChange(
+                id, ContainerStatus.PENDING, ContainerStatus.RUNNING);
     }
 
     @Test
