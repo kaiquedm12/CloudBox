@@ -10,14 +10,17 @@ import com.cloudbox.master.node.dto.HeartbeatRequest;
 import com.cloudbox.master.node.dto.NodeRegisterRequest;
 import com.cloudbox.master.node.dto.NodeRegisterResponse;
 import com.cloudbox.master.node.dto.NodeResponse;
+import com.cloudbox.master.realtime.ClusterStatusPublisher;
 
 @Service
 public class NodeService {
 
     private final NodeRepository nodeRepository;
+    private final ClusterStatusPublisher clusterStatusPublisher;
 
-    public NodeService(NodeRepository nodeRepository) {
+    public NodeService(NodeRepository nodeRepository, ClusterStatusPublisher clusterStatusPublisher) {
         this.nodeRepository = nodeRepository;
+        this.clusterStatusPublisher = clusterStatusPublisher;
     }
 
     @Transactional
@@ -43,12 +46,16 @@ public class NodeService {
         Node node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Nó não encontrado: " + nodeId));
 
+        NodeStatus previousStatus = node.getStatus();
         node.setCpuFree(request.cpuFree());
         node.setRamFreeMb(request.ramFreeMb());
         node.setDiskFreeMb(request.diskFreeMb());
         node.setTemperatureCelsius(request.temperatureCelsius());
         node.setLastHeartbeat(Instant.now());
         node.setStatus(NodeStatus.ONLINE);
+        if (previousStatus != NodeStatus.ONLINE) {
+            clusterStatusPublisher.publishNodeStatusChange(node.getId(), previousStatus, NodeStatus.ONLINE);
+        }
     }
 
     @Transactional(readOnly = true)
