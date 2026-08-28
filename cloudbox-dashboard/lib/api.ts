@@ -1,7 +1,7 @@
 const DEFAULT_ORCHESTRATOR_URL = "http://localhost:8080";
 
 export const orchestratorUrl =
-  process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? DEFAULT_ORCHESTRATOR_URL;
+  process.env.NEXT_PUBLIC_ORCHESTRATOR_URL?.trim() || DEFAULT_ORCHESTRATOR_URL;
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: BodyInit | Record<string, unknown> | null;
@@ -29,7 +29,12 @@ export async function apiRequest<T>(
     requestHeaders.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(new URL(path, `${orchestratorUrl}/`), {
+  const requestUrl =
+    typeof window === "undefined"
+      ? new URL(path, `${orchestratorUrl.replace(/\/+$/, "")}/`)
+      : path;
+
+  const response = await fetch(requestUrl, {
     ...requestOptions,
     body: isJsonBody ? JSON.stringify(body) : (body as BodyInit | null | undefined),
     headers: requestHeaders,
