@@ -36,7 +36,7 @@ class NodeServiceTest {
     }
 
     @Test
-    void doesNotPublishWhenHeartbeatKeepsNodeOnline() {
+    void publishesMetricsUpdateWhenHeartbeatKeepsNodeOnline() {
         UUID nodeId = UUID.randomUUID();
         Node node = node(nodeId, NodeStatus.ONLINE);
         when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
@@ -45,6 +45,7 @@ class NodeServiceTest {
 
         verify(clusterStatusPublisher, never()).publishNodeStatusChange(
                 nodeId, NodeStatus.ONLINE, NodeStatus.ONLINE);
+        verify(clusterStatusPublisher).publishNodeMetricsUpdated(nodeId, NodeStatus.ONLINE);
     }
 
     private NodeService nodeService() {

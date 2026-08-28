@@ -16,12 +16,17 @@ npm run dev
 
 Abra [http://localhost:3000](http://localhost:3000) no navegador.
 
-`NEXT_PUBLIC_ORCHESTRATOR_URL` define a URL base usada pelo client HTTP em
-`lib/api.ts`. As chamadas a `/api/*` passam pelo proxy do Next.js para evitar
-problemas de CORS entre o dashboard e o orquestrador durante o desenvolvimento.
+`ORCHESTRATOR_URL` define a URL base do orquestrador. As chamadas a `/api/*`
+passam por Route Handlers do Next.js, que mantêm o JWT em um cookie `httpOnly` e
+anexam o token ao header `Authorization` sem expô-lo ao JavaScript do navegador.
 
-A visão geral consulta `GET /api/nodes` com TanStack Query e atualiza os dados
-automaticamente a cada cinco segundos.
+A visão geral faz a carga inicial por `GET /api/nodes` e recebe atualizações pelo
+WebSocket autenticado `/ws/cluster-status`. O cliente reconecta automaticamente e
+sincroniza os caches de nós e containers ao receber eventos.
+
+A página `/containers` lista as cargas existentes e permite solicitar um novo
+container com validação Zod. Os cards da visão geral levam à página
+`/nodes/[id]`, que reúne métricas, heartbeat e containers alocados no nó.
 
 ## Scripts
 

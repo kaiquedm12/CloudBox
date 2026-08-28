@@ -2,8 +2,12 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+import { ClusterStatusProvider } from "@/hooks/use-cluster-status";
 
-export function Providers({ children }: Readonly<{ children: React.ReactNode }>) {
+export function Providers({
+  children,
+  realtimeEnabled,
+}: Readonly<{ children: React.ReactNode; realtimeEnabled: boolean }>) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -18,6 +22,12 @@ export function Providers({ children }: Readonly<{ children: React.ReactNode }>)
   );
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      {realtimeEnabled ? (
+        <ClusterStatusProvider>{children}</ClusterStatusProvider>
+      ) : (
+        children
+      )}
+    </QueryClientProvider>
   );
 }

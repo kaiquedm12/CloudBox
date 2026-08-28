@@ -1,7 +1,11 @@
 "use client";
 
 import { NodeCard } from "@/components/node-card";
-import { NODES_POLLING_INTERVAL_MS, useNodes } from "@/hooks/use-nodes";
+import {
+  useClusterStatus,
+  type RealtimeConnectionStatus,
+} from "@/hooks/use-cluster-status";
+import { useNodes } from "@/hooks/use-nodes";
 
 const timeFormatter = new Intl.DateTimeFormat("pt-BR", {
   hour: "2-digit",
@@ -11,10 +15,10 @@ const timeFormatter = new Intl.DateTimeFormat("pt-BR", {
 
 function OverviewHeader({
   dataUpdatedAt,
-  isFetching,
+  connectionStatus,
 }: {
   dataUpdatedAt: number;
-  isFetching: boolean;
+  connectionStatus: RealtimeConnectionStatus;
 }) {
   const updateLabel = dataUpdatedAt
     ? `Atualizado às ${timeFormatter.format(dataUpdatedAt)}`
@@ -41,10 +45,21 @@ function OverviewHeader({
         <span
           aria-hidden="true"
           className={`size-2 rounded-full ${
-            isFetching ? "animate-pulse bg-blue-500" : "bg-emerald-500"
+            connectionStatus === "connected"
+              ? "bg-emerald-500"
+              : "animate-pulse bg-amber-500"
           }`}
         />
-        {isFetching ? "Atualizando dados..." : updateLabel}
+        <span>
+          {connectionStatus === "connected"
+            ? "Conectado em tempo real"
+            : connectionStatus === "reconnecting"
+              ? "Reconectando..."
+              : "Conectando..."}
+          <span className="ml-2 hidden text-xs text-slate-400 lg:inline">
+            · {updateLabel}
+          </span>
+        </span>
       </div>
     </div>
   );
@@ -81,12 +96,12 @@ function LoadingState() {
 }
 
 export function NodesOverview() {
+  const { connectionStatus } = useClusterStatus();
   const {
     data,
     dataUpdatedAt,
     error,
     isError,
-    isFetching,
     isPending,
     isRefetchError,
     refetch,
@@ -95,7 +110,10 @@ export function NodesOverview() {
   if (isPending) {
     return (
       <div className="space-y-8">
-        <OverviewHeader dataUpdatedAt={dataUpdatedAt} isFetching={isFetching} />
+        <OverviewHeader
+          connectionStatus={connectionStatus}
+          dataUpdatedAt={dataUpdatedAt}
+        />
         <LoadingState />
       </div>
     );
@@ -104,7 +122,10 @@ export function NodesOverview() {
   if (isError && !data) {
     return (
       <div className="space-y-8">
-        <OverviewHeader dataUpdatedAt={dataUpdatedAt} isFetching={isFetching} />
+        <OverviewHeader
+          connectionStatus={connectionStatus}
+          dataUpdatedAt={dataUpdatedAt}
+        />
         <section
           className="rounded-2xl border border-rose-200 bg-rose-50 p-6 sm:p-8"
           role="alert"
@@ -144,7 +165,10 @@ export function NodesOverview() {
 
   return (
     <div className="space-y-8">
-      <OverviewHeader dataUpdatedAt={dataUpdatedAt} isFetching={isFetching} />
+      <OverviewHeader
+        connectionStatus={connectionStatus}
+        dataUpdatedAt={dataUpdatedAt}
+      />
 
       <div className="flex flex-wrap gap-3" aria-label="Resumo do cluster">
         <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-sm">
@@ -158,7 +182,7 @@ export function NodesOverview() {
           <strong className="mr-1.5">{offlineCount}</strong> offline
         </div>
         <div className="ml-auto hidden items-center text-xs text-slate-400 lg:flex">
-          Atualização automática a cada {NODES_POLLING_INTERVAL_MS / 1_000} segundos
+          Atualizações recebidas via WebSocket
         </div>
       </div>
 
