@@ -17,7 +17,11 @@ npm run dev
 Abra [http://localhost:3000](http://localhost:3000) no navegador.
 
 `NEXT_PUBLIC_ORCHESTRATOR_URL` define a URL base usada pelo client HTTP em
-`lib/api.ts`. Nenhuma chamada de API é executada nesta etapa.
+`lib/api.ts`. As chamadas a `/api/*` passam pelo proxy do Next.js para evitar
+problemas de CORS entre o dashboard e o orquestrador durante o desenvolvimento.
+
+A visão geral consulta `GET /api/nodes` com TanStack Query e atualiza os dados
+automaticamente a cada cinco segundos.
 
 ## Scripts
 
