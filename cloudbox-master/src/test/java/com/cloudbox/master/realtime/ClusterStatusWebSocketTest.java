@@ -21,6 +21,10 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.actuate.web.servlet.ManagementWebSecurityAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
@@ -69,6 +73,13 @@ class ClusterStatusWebSocketTest {
         assertThat(nodeMessage.get("currentStatus").asText()).isEqualTo("ONLINE");
         assertThat(nodeMessage.get("occurredAt").asText()).isNotBlank();
 
+        publisher.publishNodeMetricsUpdated(nodeId, NodeStatus.ONLINE);
+
+        JsonNode metricsMessage = objectMapper.readTree(listener.messages.poll(5, TimeUnit.SECONDS));
+        assertThat(metricsMessage.get("eventType").asText()).isEqualTo("NODE_METRICS_UPDATED");
+        assertThat(metricsMessage.get("resourceId").asText()).isEqualTo(nodeId.toString());
+        assertThat(metricsMessage.get("currentStatus").asText()).isEqualTo("ONLINE");
+
         UUID containerId = UUID.randomUUID();
         publisher.publishContainerStatusChange(
                 containerId, ContainerStatus.PENDING, ContainerStatus.RUNNING);
@@ -85,7 +96,11 @@ class ClusterStatusWebSocketTest {
     @EnableAutoConfiguration(exclude = {
             DataSourceAutoConfiguration.class,
             HibernateJpaAutoConfiguration.class,
-            FlywayAutoConfiguration.class
+            FlywayAutoConfiguration.class,
+            SecurityAutoConfiguration.class,
+            UserDetailsServiceAutoConfiguration.class,
+            ServletWebSecurityAutoConfiguration.class,
+            ManagementWebSecurityAutoConfiguration.class
     })
     @Import({WebSocketConfig.class, ClusterStatusWebSocketHandler.class, ClusterStatusPublisher.class})
     static class TestApplication {

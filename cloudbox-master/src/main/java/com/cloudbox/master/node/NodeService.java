@@ -55,6 +55,8 @@ public class NodeService {
         node.setStatus(NodeStatus.ONLINE);
         if (previousStatus != NodeStatus.ONLINE) {
             clusterStatusPublisher.publishNodeStatusChange(node.getId(), previousStatus, NodeStatus.ONLINE);
+        } else {
+            clusterStatusPublisher.publishNodeMetricsUpdated(node.getId(), NodeStatus.ONLINE);
         }
     }
 
