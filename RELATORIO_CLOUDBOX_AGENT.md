@@ -71,6 +71,8 @@ O `AgentTokenStorage` grava o `nodeId` e o token, por padrão, em:
 
 O construtor usado pelo Spring foi marcado explicitamente para evitar ambiguidade de injeção no Spring Framework 7.
 
+Durante a revisão para validação em máquinas físicas foi identificado que o arquivo é gravado e pode ser lido pela classe de armazenamento, mas o `NodeRegistrationService` ainda não chama `load()` ao iniciar. Por isso, uma reinicialização do agente registra atualmente um novo nó no master e pode deixar o registro anterior como duplicado/offline. Esse comportamento deve ser corrigido antes da avaliação prolongada.
+
 ### Heartbeat
 
 O `HeartbeatScheduler` envia, por padrão a cada dez segundos, `POST /api/nodes/{id}/heartbeat` com:
@@ -204,7 +206,7 @@ Executar somente os testes do agente e seus módulos necessários:
 ./mvnw -pl cloudbox-agent -am test
 ```
 
-Na última execução foram aprovados sete testes:
+Na última execução foram aprovados 14 testes no módulo do agente, incluindo:
 
 - normalização da temperatura indisponível;
 - limites do percentual de CPU;
@@ -213,11 +215,15 @@ Na última execução foram aprovados sete testes:
 - contrato HTTP e JSON de registro;
 - contrato HTTP e JSON de heartbeat;
 - envio do Bearer token.
+- consulta autenticada de comandos pendentes;
+- execução e confirmação de comandos `START`, `STOP` e `REMOVE`;
+- nova tentativa de confirmação sem iniciar ou remover o mesmo container novamente;
+- tratamento de falhas da Docker Engine e do master.
 
 Resultado:
 
 ```text
-Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 14, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
@@ -243,6 +249,12 @@ O master recebeu `password authentication failed for user "cloudbox"`. A instân
 
 O Spring encontrou dois construtores e tentou usar um construtor vazio inexistente. O construtor de produção foi marcado com `@Autowired`.
 
+### Ciclo de vida dos containers
+
+O contrato de comandos pendentes passou a informar uma ação explícita (`START`, `STOP` ou `REMOVE`) e, nas ações destrutivas, o identificador real do container na Docker Engine. O `PendingCommandPoller` chama `stopContainer` ou `removeContainer` e reporta `STOPPED` ou `REMOVED` ao master.
+
+Para tolerar uma indisponibilidade temporária do master após a operação Docker, o agente mantém em memória as ações concluídas que aguardam confirmação. Nos ciclos seguintes ele repete somente o reporte de status, evitando executar novamente a operação local.
+
 ## 10. Situação dos critérios de aceite
 
 ### Coleta de métricas
@@ -261,3 +273,13 @@ Critério atendido:
 - `lastHeartbeat` foi preenchido e é atualizado enquanto o agente roda;
 - o intervalo de 10 segundos permanece abaixo do timeout de 30 segundos do master.
 
+### Validação prolongada em máquinas físicas
+
+Critério ainda não atendido:
+
+- a execução automatizada neste workspace não substitui a instalação em hardware distinto;
+- ainda faltam logs contínuos de várias horas em pelo menos duas máquinas físicas;
+- não há evidência suficiente para afirmar ausência de quedas em ambiente externo ao desenvolvimento;
+- a duplicação de nós após reinício, descrita na seção 4, deve ser registrada na avaliação experimental e corrigida antes da rodada definitiva.
+
+Para a avaliação experimental devem ser preservados, em cada máquina, sistema operacional, arquitetura, horário inicial/final, logs do agente, reinicializações, falhas de rede e amostras de `lastHeartbeat` obtidas no master.

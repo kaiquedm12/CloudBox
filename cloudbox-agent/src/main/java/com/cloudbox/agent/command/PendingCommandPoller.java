@@ -25,6 +25,7 @@ public class PendingCommandPoller {
     private final ContainerExecutionService executionService;
     private final ContainerStatusReporter statusReporter;
     private final Map<UUID, String> runningAwaitingReport = new ConcurrentHashMap<>();
+    private final Map<UUID, String> actionAwaitingReport = new ConcurrentHashMap<>();
 
     public PendingCommandPoller(
             OrchestratorClient orchestratorClient,
@@ -53,6 +54,27 @@ public class PendingCommandPoller {
     }
 
     private void execute(PendingCommand command, String token) {
+        String completedAction = actionAwaitingReport.get(command.containerId());
+        if (completedAction != null) {
+            reportCompletedAction(command.containerId(), token, completedAction);
+            return;
+        }
+        if ("STOP".equals(command.action())) {
+            executionService.stopContainer(requireDockerId(command));
+            actionAwaitingReport.put(command.containerId(), "STOP");
+            reportCompletedAction(command.containerId(), token, "STOP");
+            return;
+        }
+        if ("REMOVE".equals(command.action())) {
+            executionService.removeContainer(requireDockerId(command));
+            actionAwaitingReport.put(command.containerId(), "REMOVE");
+            reportCompletedAction(command.containerId(), token, "REMOVE");
+            return;
+        }
+        if (!"START".equals(command.action())) {
+            throw new IllegalArgumentException("Comando de container desconhecido: " + command.action());
+        }
+
         String alreadyRunning = runningAwaitingReport.get(command.containerId());
         if (alreadyRunning != null) {
             reportRunning(command, token, alreadyRunning);
@@ -79,6 +101,27 @@ public class PendingCommandPoller {
 
         runningAwaitingReport.put(command.containerId(), dockerContainerId);
         reportRunning(command, token, dockerContainerId);
+    }
+
+    private void reportCompletedAction(UUID containerId, String token, String action) {
+        try {
+            if ("STOP".equals(action)) {
+                statusReporter.stopped(containerId, token);
+            } else {
+                statusReporter.removed(containerId, token);
+            }
+            actionAwaitingReport.remove(containerId, action);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Acao {} concluida para container id={}, mas o status ainda nao foi reportado; "
+                    + "o agente tentara novamente", action, containerId, exception);
+        }
+    }
+
+    private String requireDockerId(PendingCommand command) {
+        if (command.dockerContainerId() == null || command.dockerContainerId().isBlank()) {
+            throw new IllegalStateException("Comando " + command.action() + " sem dockerContainerId");
+        }
+        return command.dockerContainerId();
     }
 
     private void reportRunning(PendingCommand command, String token, String dockerContainerId) {

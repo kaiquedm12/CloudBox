@@ -3,13 +3,15 @@
 import { useMemo, useState } from "react";
 import { ContainerList } from "@/components/container-list";
 import { CreateContainerModal } from "@/components/create-container-modal";
-import { useContainers } from "@/hooks/use-containers";
+import { useContainers, useRemoveContainer, useStopContainer } from "@/hooks/use-containers";
 import { useNodes } from "@/hooks/use-nodes";
 
 export function ContainersOverview() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const containersQuery = useContainers();
   const nodesQuery = useNodes();
+  const stopContainer = useStopContainer();
+  const removeContainer = useRemoveContainer();
   const containers = [...(containersQuery.data ?? [])].sort(
     (first, second) =>
       new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime(),
@@ -59,7 +61,21 @@ export function ContainersOverview() {
           </button>
         </div>
       ) : (
-        <ContainerList containers={containers} nodeNames={nodeNames} showNode />
+        <ContainerList
+          containers={containers}
+          nodeNames={nodeNames}
+          showNode
+          actionError={stopContainer.error?.message ?? removeContainer.error?.message}
+          busyContainerId={
+            stopContainer.isPending
+              ? stopContainer.variables
+              : removeContainer.isPending
+                ? removeContainer.variables
+                : undefined
+          }
+          onStop={(id) => stopContainer.mutate(id)}
+          onRemove={(id) => removeContainer.mutate(id)}
+        />
       )}
 
       {isModalOpen ? (

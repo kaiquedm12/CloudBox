@@ -219,6 +219,42 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/containers/{id}/stop:
+    post:
+      tags: [Containers]
+      summary: Solicita a parada de um container em execução
+      operationId: stopContainer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '202':
+          description: Parada encaminhada ao agente do nó
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContainerResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/containers/{id}:
+    delete:
+      tags: [Containers]
+      summary: Solicita a remoção de um container do nó
+      operationId: removeContainer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '202':
+          description: Remoção encaminhada ao agente do nó
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContainerResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
     AgentToken:
@@ -463,7 +499,10 @@ components:
         - PENDING
         - SCHEDULED
         - RUNNING
+        - STOPPING
         - STOPPED
+        - REMOVING
+        - REMOVED
         - ERROR
         - FAILED
     ContainerStatusUpdateRequest:
@@ -473,11 +512,12 @@ components:
       properties:
         status:
           type: string
-          description: Novo status do container. Aceita apenas RUNNING, ERROR ou STOPPED — PENDING não é aceito neste endpoint.
+          description: Novo status reportado pelo agente. PENDING não é aceito neste endpoint.
           enum:
             - RUNNING
             - ERROR
             - STOPPED
+            - REMOVED
           example: RUNNING
         dockerContainerId:
           type: string
@@ -495,6 +535,10 @@ components:
           format: uuid
           description: Identificador do container no orquestrador
           example: 0c0f7c3d-7a4e-4f1b-9b1c-3e2d5a6b7c8d
+        action:
+          type: string
+          enum: [START, STOP, REMOVE]
+          description: Operação que o agente deve executar
         imageName:
           type: string
           description: Nome da imagem Docker a executar
@@ -514,3 +558,7 @@ components:
           format: int32
           description: Disco reservado em MB
           example: 128
+        dockerContainerId:
+          type: string
+          nullable: true
+          description: Identificador usado pelas operações STOP e REMOVE

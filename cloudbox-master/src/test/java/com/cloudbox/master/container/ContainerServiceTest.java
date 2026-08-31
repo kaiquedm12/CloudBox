@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,29 +54,60 @@ class ContainerServiceTest {
     void listsOnlyPendingCommandsOfTheNode() {
         UUID nodeId = UUID.randomUUID();
         ContainerInstance pending = container(UUID.randomUUID(), nodeId, ContainerStatus.PENDING);
-        ContainerInstance running = container(UUID.randomUUID(), nodeId, ContainerStatus.RUNNING);
-        when(containerRepository.findByNodeIdAndStatus(nodeId, ContainerStatus.PENDING))
-                .thenReturn(List.of(pending, running));
+        ContainerInstance stopping = container(UUID.randomUUID(), nodeId, ContainerStatus.STOPPING);
+        when(containerRepository.findByNodeIdAndStatusIn(nodeId,
+                Set.of(ContainerStatus.PENDING, ContainerStatus.STOPPING, ContainerStatus.REMOVING)))
+                .thenReturn(List.of(pending, stopping));
 
         List<PendingCommandResponse> result = containerService().findPendingCommands(nodeId);
 
         assertThat(result).hasSize(2);
         PendingCommandResponse command = result.get(0);
         assertThat(command.containerId()).isEqualTo(pending.getId());
+        assertThat(command.action()).isEqualTo("START");
         assertThat(command.imageName()).isEqualTo("nginx:1.27");
         assertThat(command.cpuCores()).isEqualTo(1);
         assertThat(command.memoryMb()).isEqualTo(512);
         assertThat(command.diskMb()).isEqualTo(128);
+        assertThat(result.get(1).action()).isEqualTo("STOP");
     }
 
     @Test
     void returnsEmptyListWhenNoPendingCommand() {
         UUID nodeId = UUID.randomUUID();
-        when(containerRepository.findByNodeIdAndStatus(nodeId, ContainerStatus.PENDING)).thenReturn(List.of());
+        when(containerRepository.findByNodeIdAndStatusIn(nodeId,
+                Set.of(ContainerStatus.PENDING, ContainerStatus.STOPPING, ContainerStatus.REMOVING)))
+                .thenReturn(List.of());
 
         List<PendingCommandResponse> result = containerService().findPendingCommands(nodeId);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void requestsStopForRunningContainer() {
+        UUID id = UUID.randomUUID();
+        ContainerInstance container = container(id, UUID.randomUUID(), ContainerStatus.RUNNING);
+        container.setDockerContainerId("docker-123");
+        when(containerRepository.findById(id)).thenReturn(Optional.of(container));
+
+        var result = containerService().stop(id);
+
+        assertThat(result.status()).isEqualTo(ContainerStatus.STOPPING);
+        verify(clusterStatusPublisher).publishContainerStatusChange(
+                id, ContainerStatus.RUNNING, ContainerStatus.STOPPING);
+    }
+
+    @Test
+    void requestsRemovalForStoppedContainer() {
+        UUID id = UUID.randomUUID();
+        ContainerInstance container = container(id, UUID.randomUUID(), ContainerStatus.STOPPED);
+        container.setDockerContainerId("docker-123");
+        when(containerRepository.findById(id)).thenReturn(Optional.of(container));
+
+        var result = containerService().remove(id);
+
+        assertThat(result.status()).isEqualTo(ContainerStatus.REMOVING);
     }
 
     @Test
@@ -119,7 +151,7 @@ class ContainerServiceTest {
 
         assertThatThrownBy(() -> containerService().updateStatus(id, request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("RUNNING, ERROR ou STOPPED");
+                .hasMessageContaining("RUNNING, ERROR, STOPPED ou REMOVED");
     }
 
     @Test

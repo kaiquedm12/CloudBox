@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record PendingCommandResponse(
         @Schema(description = "Identificador do container no orquestrador", example = "0c0f7c3d-7a4e-4f1b-9b1c-3e2d5a6b7c8d")
         UUID containerId,
+        @Schema(description = "Operacao que o agente deve executar", example = "START")
+        String action,
         @Schema(description = "Nome da imagem Docker a executar", example = "nginx:1.27")
         String imageName,
         @Schema(description = "Número de núcleos de CPU reservados", example = "1")
@@ -14,5 +16,7 @@ public record PendingCommandResponse(
         @Schema(description = "Memória reservada em MB", example = "512")
         Integer memoryMb,
         @Schema(description = "Disco reservado em MB", example = "128")
-        Integer diskMb) {
+        Integer diskMb,
+        @Schema(description = "Identificador Docker usado por STOP e REMOVE", nullable = true)
+        String dockerContainerId) {
 }
