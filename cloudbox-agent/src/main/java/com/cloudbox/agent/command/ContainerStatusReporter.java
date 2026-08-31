@@ -29,4 +29,14 @@ public class ContainerStatusReporter {
         orchestratorClient.updateContainerStatus(
                 containerId, token, new ContainerStatusUpdateRequest("ERROR", null, message));
     }
+
+    public void stopped(UUID containerId, String token) {
+        orchestratorClient.updateContainerStatus(
+                containerId, token, new ContainerStatusUpdateRequest("STOPPED", null, null));
+    }
+
+    public void removed(UUID containerId, String token) {
+        orchestratorClient.updateContainerStatus(
+                containerId, token, new ContainerStatusUpdateRequest("REMOVED", null, null));
+    }
 }

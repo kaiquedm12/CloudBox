@@ -43,7 +43,7 @@ function isClusterStatusMessage(value: unknown): value is ClusterStatusMessage {
       ["ONLINE", "OFFLINE"].includes(message.currentStatus)) ||
       (message.eventType === "CONTAINER_STATUS_CHANGED" &&
         message.resourceType === "CONTAINER" &&
-        ["PENDING", "SCHEDULED", "RUNNING", "STOPPED", "ERROR", "FAILED"].includes(
+        ["PENDING", "SCHEDULED", "RUNNING", "STOPPING", "STOPPED", "REMOVING", "REMOVED", "ERROR", "FAILED"].includes(
           message.currentStatus,
         )))
   );

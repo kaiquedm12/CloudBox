@@ -4,7 +4,10 @@ const statusLabels: Record<ContainerStatus, string> = {
   PENDING: "Pendente",
   SCHEDULED: "Agendado",
   RUNNING: "Em execução",
+  STOPPING: "Parando",
   STOPPED: "Parado",
+  REMOVING: "Removendo",
+  REMOVED: "Removido",
   ERROR: "Erro",
   FAILED: "Falhou",
 };
@@ -13,7 +16,10 @@ const statusClasses: Record<ContainerStatus, string> = {
   PENDING: "bg-amber-50 text-amber-700 ring-amber-200",
   SCHEDULED: "bg-blue-50 text-blue-700 ring-blue-200",
   RUNNING: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  STOPPING: "bg-amber-50 text-amber-700 ring-amber-200",
   STOPPED: "bg-slate-100 text-slate-600 ring-slate-200",
+  REMOVING: "bg-amber-50 text-amber-700 ring-amber-200",
+  REMOVED: "bg-slate-100 text-slate-500 ring-slate-200",
   ERROR: "bg-rose-50 text-rose-700 ring-rose-200",
   FAILED: "bg-rose-50 text-rose-700 ring-rose-200",
 };
@@ -33,11 +39,19 @@ export function ContainerList({
   emptyMessage = "Nenhum container encontrado.",
   nodeNames,
   showNode = false,
+  onStop,
+  onRemove,
+  busyContainerId,
+  actionError,
 }: {
   containers: CloudContainer[];
   emptyMessage?: string;
   nodeNames?: Map<string, string>;
   showNode?: boolean;
+  onStop?: (containerId: string) => void;
+  onRemove?: (containerId: string) => void;
+  busyContainerId?: string;
+  actionError?: string;
 }) {
   if (containers.length === 0) {
     return (
@@ -48,68 +62,37 @@ export function ContainerList({
   }
 
   return (
-    <div className="grid gap-4">
-      {containers.map((container) => (
-        <article
-          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-          key={container.id}
-        >
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-            <div className="min-w-0">
-              <p className="truncate font-mono text-base font-semibold text-slate-950">
-                {container.imageName}
-              </p>
-              <p className="mt-1 truncate text-xs text-slate-400" title={container.id}>
-                {container.id}
-              </p>
-            </div>
-            <span
-              className={`w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[container.status]}`}
-            >
-              {statusLabels[container.status]}
-            </span>
-          </div>
-
-          <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-100 pt-5 text-sm sm:grid-cols-4">
-            <div>
-              <dt className="text-slate-400">CPU</dt>
-              <dd className="mt-1 font-semibold text-slate-800">
-                {container.cpuCores} {container.cpuCores === 1 ? "núcleo" : "núcleos"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-400">RAM</dt>
-              <dd className="mt-1 font-semibold text-slate-800">{container.memoryMb} MB</dd>
-            </div>
-            <div>
-              <dt className="text-slate-400">Disco</dt>
-              <dd className="mt-1 font-semibold text-slate-800">{container.diskMb} MB</dd>
-            </div>
-            <div>
-              <dt className="text-slate-400">Criado em</dt>
-              <dd className="mt-1 font-semibold text-slate-800">
-                {formatCreatedAt(container.createdAt)}
-              </dd>
-            </div>
-            {showNode ? (
-              <div className="col-span-2 sm:col-span-4">
-                <dt className="text-slate-400">Nó alocado</dt>
-                <dd className="mt-1 font-semibold text-slate-800">
-                  {container.nodeId
-                    ? nodeNames?.get(container.nodeId) ?? container.nodeId
-                    : "Aguardando agendamento"}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-
-          {container.errorMessage ? (
-            <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {container.errorMessage}
-            </p>
-          ) : null}
-        </article>
-      ))}
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {actionError ? <p className="border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700" role="alert">{actionError}</p> : null}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>
+            <th className="px-5 py-3 font-semibold">Imagem</th>
+            {showNode ? <th className="px-5 py-3 font-semibold">Nó</th> : null}
+            <th className="px-5 py-3 font-semibold">Status</th>
+            <th className="px-5 py-3 font-semibold">Recursos</th>
+            <th className="px-5 py-3 font-semibold">Criado em</th>
+            {(onStop || onRemove) ? <th className="px-5 py-3 text-right font-semibold">Ações</th> : null}
+          </tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {containers.map((container) => {
+              const busy = busyContainerId === container.id;
+              const removable = ["RUNNING", "STOPPED", "ERROR", "FAILED"].includes(container.status);
+              return <tr className="align-middle" key={container.id}>
+                <td className="px-5 py-4"><p className="font-mono font-semibold text-slate-950">{container.imageName}</p><p className="mt-1 max-w-52 truncate text-xs text-slate-400" title={container.id}>{container.id}</p>{container.errorMessage ? <p className="mt-2 text-xs text-rose-700">{container.errorMessage}</p> : null}</td>
+                {showNode ? <td className="px-5 py-4 font-medium text-slate-700">{container.nodeId ? nodeNames?.get(container.nodeId) ?? container.nodeId : "Aguardando"}</td> : null}
+                <td className="px-5 py-4"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[container.status]}`}>{statusLabels[container.status]}</span></td>
+                <td className="whitespace-nowrap px-5 py-4 text-slate-600">{container.cpuCores} CPU · {container.memoryMb} MB</td>
+                <td className="whitespace-nowrap px-5 py-4 text-slate-600">{formatCreatedAt(container.createdAt)}</td>
+                {(onStop || onRemove) ? <td className="px-5 py-4"><div className="flex justify-end gap-2">
+                  {onStop ? <button className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || container.status !== "RUNNING"} onClick={() => onStop(container.id)} type="button">Parar</button> : null}
+                  {onRemove ? <button className="rounded-lg border border-rose-200 px-3 py-2 font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || !removable} onClick={() => onRemove(container.id)} type="button">Remover</button> : null}
+                </div></td> : null}
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

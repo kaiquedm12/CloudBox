@@ -41,3 +41,26 @@ export function useCreateContainer() {
     },
   });
 }
+
+function useContainerAction(method: "POST" | "DELETE", suffix = "") {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (containerId: string) =>
+      apiRequest<CloudContainer>(`/api/containers/${containerId}${suffix}`, { method }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<CloudContainer[]>(CONTAINERS_QUERY_KEY, (current) =>
+        current?.map((container) => container.id === updated.id ? updated : container),
+      );
+      void queryClient.invalidateQueries({ queryKey: CONTAINERS_QUERY_KEY });
+    },
+  });
+}
+
+export function useStopContainer() {
+  return useContainerAction("POST", "/stop");
+}
+
+export function useRemoveContainer() {
+  return useContainerAction("DELETE");
+}

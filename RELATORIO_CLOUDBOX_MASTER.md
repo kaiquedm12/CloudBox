@@ -105,7 +105,17 @@ O `ContainerService.create` consulta o agendador. Havendo nó candidato, registr
 }
 ```
 
-`GET /api/containers` lista as solicitações cadastradas.
+`GET /api/containers` lista as solicitações cadastradas e é consumido pelo dashboard.
+
+O ciclo de vida passou a incluir ações assíncronas:
+
+- `POST /api/containers/{id}/stop` aceita um container `RUNNING` e altera seu estado para `STOPPING`;
+- `DELETE /api/containers/{id}` solicita a remoção e altera o estado para `REMOVING` quando existe um container Docker associado;
+- o agente consulta comandos com ação `START`, `STOP` ou `REMOVE` e confirma o resultado pelo endpoint de status;
+- as confirmações finais usam `RUNNING`, `STOPPED`, `REMOVED` ou `ERROR`;
+- cada transição é publicada no WebSocket `/ws/cluster-status` para atualização imediata do dashboard.
+
+Os registros removidos permanecem no banco com status `REMOVED`, preservando histórico para auditoria e avaliação experimental. A remoção refere-se ao container existente na Docker Engine, não ao apagamento do registro histórico.
 
 ## 9. Configurações do master
 
@@ -228,7 +238,7 @@ Executar somente os testes do master e seus módulos necessários:
 ./mvnw -pl cloudbox-master -am test
 ```
 
-Foram aprovados dez testes:
+Na última execução foram aprovados 41 testes no módulo master. Além dos cenários do agendador, a suíte cobre:
 
 - escolhe o nó com mais recursos livres (scheduler);
 - retorna vazio quando nenhum nó tem recursos suficientes;
@@ -240,11 +250,16 @@ Foram aprovados dez testes:
 - mantém apenas nós ONLINE com recursos suficientes;
 - rejeita nó cuja temperatura excede o limite;
 - aceita nó sem sensor de temperatura.
+- autenticação JWT e autorização por token do agente;
+- registro, heartbeat e timeout de nós;
+- criação, listagem e transições de status dos containers;
+- solicitação de parada e remoção;
+- publicação de mudanças de nós e containers por WebSocket.
 
 Resultado:
 
 ```text
-Tests run: 10, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 41, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
@@ -273,4 +288,14 @@ A geração de UUID no banco depende da extensão `pgcrypto`, habilitada pela pr
 - a escolha usa a folga relativa de RAM e CPU (estratégia "most available resources");
 - `POST /api/containers` registra a solicitação com o `nodeId` escolhido e `PENDING`;
 - sem nó disponível, a API responde `409 Conflict` com mensagem explicativa;
-- a integração com a execução real do container pelo agente (docker-java) ainda precisa ser validada.
+- o agente recebe comandos explícitos de início, parada e remoção;
+- a API mantém estados transitórios enquanto o agente executa a ação;
+- as mudanças são propagadas em tempo real ao dashboard por WebSocket;
+- a suíte automatizada valida o contrato e o fluxo de controle;
+- a execução real em duas máquinas físicas ainda precisa ser comprovada na avaliação experimental.
+
+## 15. Integração com a tela de containers
+
+A página `/containers` consome `GET /api/containers` e apresenta imagem, nó alocado, status, recursos e data de criação. As ações autenticadas de parar e remover atualizam inicialmente o cache do dashboard com a resposta `202 Accepted` e depois são reconciliadas com os eventos WebSocket e uma nova consulta da lista.
+
+Os estados transitórios `STOPPING` e `REMOVING` impedem ações duplicadas enquanto o agente trabalha. Os estados finais `STOPPED` e `REMOVED` registram a confirmação recebida do nó.
