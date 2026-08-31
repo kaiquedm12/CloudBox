@@ -24,25 +24,28 @@ export function ContainersOverview() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
-            CloudBox
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            Containers
-          </h1>
-          <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-            Solicite novas cargas e acompanhe o status dos containers agendados no cluster.
-          </p>
+      <div className="relative overflow-hidden rounded-3xl border border-blue-100 bg-white/70 p-6 shadow-sm sm:p-8 dark:border-blue-950 dark:bg-slate-900/60">
+        <div aria-hidden="true" className="absolute -right-16 -top-20 size-52 rounded-full bg-blue-100/70 blur-3xl dark:bg-blue-900/20" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+              CloudBox
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Containers
+            </h1>
+            <p className="mt-3 max-w-2xl leading-7 text-slate-600">
+              Solicite novas cargas e acompanhe o status dos containers agendados no cluster.
+            </p>
+          </div>
+          <button
+            className="shrink-0 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            onClick={() => setIsModalOpen(true)}
+            type="button"
+          >
+            Novo container
+          </button>
         </div>
-        <button
-          className="shrink-0 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-          onClick={() => setIsModalOpen(true)}
-          type="button"
-        >
-          Novo container
-        </button>
       </div>
 
       {containersQuery.isPending ? (

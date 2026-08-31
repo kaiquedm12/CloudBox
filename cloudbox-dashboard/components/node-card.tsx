@@ -108,7 +108,7 @@ export function NodeCard({ node }: NodeCardProps) {
       href={`/nodes/${encodeURIComponent(node.id)}`}
     >
       <article
-        className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+        className={`group overflow-hidden rounded-3xl border bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:border-blue-800 dark:hover:shadow-black/20 ${
           isOnline ? "border-slate-200" : "border-slate-200 bg-slate-50/80"
         }`}
       >
@@ -128,7 +128,7 @@ export function NodeCard({ node }: NodeCardProps) {
                   Nó do cluster
                 </span>
               </div>
-              <h2 className="truncate text-xl font-semibold tracking-tight text-slate-950">
+              <h2 className="truncate text-xl font-semibold tracking-tight text-slate-950 transition group-hover:text-blue-600 dark:group-hover:text-blue-400">
                 {node.name}
               </h2>
             </div>

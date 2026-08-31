@@ -30,7 +30,9 @@ export default async function LoginPage({
   const params = await searchParams;
 
   return (
-    <section className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
+    <section className="relative mx-auto max-w-md overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-10 dark:shadow-black/20">
+      <div aria-hidden="true" className="absolute -right-16 -top-20 size-48 rounded-full bg-blue-100 blur-3xl dark:bg-blue-900/20" />
+      <div className="relative">
       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
         Acesso seguro
       </p>
@@ -42,6 +44,7 @@ export default async function LoginPage({
         CloudBox.
       </p>
       <LoginForm returnTo={safeReturnPath(params.next)} />
+      </div>
     </section>
   );
 }
