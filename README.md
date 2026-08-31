@@ -180,6 +180,34 @@ docker compose up -d
 http://localhost:3000
 ```
 
+## Deploy do backend no Railway
+
+O arquivo `railway.json` configura o build Docker do `cloudbox-master`, o
+health check em `/actuator/health` e a politica de reinicio. O backend usa Java
+21, executa as migrations do Flyway ao iniciar e escuta a variavel `PORT`
+fornecida pelo Railway.
+
+No projeto do Railway, crie um servico PostgreSQL e um servico ligado a este
+repositorio. No servico do backend, configure estas variaveis de referencia
+(considerando que o banco se chama `Postgres`):
+
+```dotenv
+PGHOST=${{Postgres.PGHOST}}
+PGPORT=${{Postgres.PGPORT}}
+PGDATABASE=${{Postgres.PGDATABASE}}
+PGUSER=${{Postgres.PGUSER}}
+PGPASSWORD=${{Postgres.PGPASSWORD}}
+JWT_SECRET=<segredo-base64-com-pelo-menos-32-bytes>
+JWT_EXPIRATION_SECONDS=3600
+```
+
+Depois do deploy, gere um dominio publico em **Settings > Networking** e
+configure cada agente com a URL criada:
+
+```dotenv
+CLOUDBOX_MASTER_URL=https://seu-backend.up.railway.app
+```
+
 ## Roadmap
 
 - [ ] Agente: coleta de métricas (CPU, RAM, disco, temperatura) com OSHI
