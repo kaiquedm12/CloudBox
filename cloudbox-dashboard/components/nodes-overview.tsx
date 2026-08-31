@@ -25,41 +25,44 @@ function OverviewHeader({
     : "Aguardando primeira leitura";
 
   return (
-    <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
-          Visão geral
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-          Nós do cluster
-        </h1>
-        <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-          Acompanhe a disponibilidade e os recursos de todos os nós registrados no
-          orquestrador.
-        </p>
-      </div>
-      <div
-        aria-live="polite"
-        className="flex shrink-0 items-center gap-2 text-sm text-slate-500"
-      >
-        <span
-          aria-hidden="true"
-          className={`size-2 rounded-full ${
-            connectionStatus === "connected"
-              ? "bg-emerald-500"
-              : "animate-pulse bg-amber-500"
-          }`}
-        />
-        <span>
-          {connectionStatus === "connected"
-            ? "Conectado em tempo real"
-            : connectionStatus === "reconnecting"
-              ? "Reconectando..."
-              : "Conectando..."}
-          <span className="ml-2 hidden text-xs text-slate-400 lg:inline">
-            · {updateLabel}
+    <div className="relative overflow-hidden rounded-3xl border border-blue-100 bg-white/70 p-6 shadow-sm backdrop-blur sm:p-8 dark:border-blue-950 dark:bg-slate-900/60">
+      <div aria-hidden="true" className="absolute -right-16 -top-20 size-52 rounded-full bg-blue-100/70 blur-3xl dark:bg-blue-900/20" />
+      <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+            Visão geral
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            Nós do cluster
+          </h1>
+          <p className="mt-3 max-w-2xl leading-7 text-slate-600">
+            Acompanhe a disponibilidade e os recursos de todos os nós registrados no
+            orquestrador.
+          </p>
+        </div>
+        <div
+          aria-live="polite"
+          className="flex shrink-0 items-center gap-2 text-sm text-slate-500"
+        >
+          <span
+            aria-hidden="true"
+            className={`size-2 rounded-full ${
+              connectionStatus === "connected"
+                ? "bg-emerald-500"
+                : "animate-pulse bg-amber-500"
+            }`}
+          />
+          <span>
+            {connectionStatus === "connected"
+              ? "Conectado em tempo real"
+              : connectionStatus === "reconnecting"
+                ? "Reconectando..."
+                : "Conectando..."}
+            <span className="ml-2 hidden text-xs text-slate-400 lg:inline">
+              · {updateLabel}
+            </span>
           </span>
-        </span>
+        </div>
       </div>
     </div>
   );
@@ -164,24 +167,24 @@ export function NodesOverview() {
   const offlineCount = nodes.length - onlineCount;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <OverviewHeader
         connectionStatus={connectionStatus}
         dataUpdatedAt={dataUpdatedAt}
       />
 
-      <div className="flex flex-wrap gap-3" aria-label="Resumo do cluster">
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-sm">
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]" aria-label="Resumo do cluster">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <strong className="mr-1.5 text-slate-950">{nodes.length}</strong>
           {nodes.length === 1 ? "nó registrado" : "nós registrados"}
         </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700 transition hover:-translate-y-0.5 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
           <strong className="mr-1.5">{onlineCount}</strong> online
         </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-slate-100 px-5 py-4 text-sm text-slate-600 transition hover:-translate-y-0.5">
           <strong className="mr-1.5">{offlineCount}</strong> offline
         </div>
-        <div className="ml-auto hidden items-center text-xs text-slate-400 lg:flex">
+        <div className="hidden items-center px-3 text-xs text-slate-400 lg:flex">
           Atualizações recebidas via WebSocket
         </div>
       </div>
