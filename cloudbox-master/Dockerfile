@@ -8,7 +8,7 @@ COPY cloudbox-master/pom.xml ./cloudbox-master/pom.xml
 COPY cloudbox-agent/pom.xml ./cloudbox-agent/pom.xml
 COPY cloudbox-master/src ./cloudbox-master/src
 
-RUN --mount=type=cache,target=/root/.m2 \
+RUN --mount=type=cache,id=maven-repository,target=/root/.m2 \
     mvn -pl cloudbox-master -am package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jre-alpine
