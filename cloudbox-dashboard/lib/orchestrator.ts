@@ -1,5 +1,5 @@
 const DEFAULT_ORCHESTRATOR_URL =
-  "http://cloudbox-production-55f7.up.railway.app";
+  "https://cloudbox-production-55f7.up.railway.app";
 
 export function orchestratorApiUrl(path: string, search = "") {
   const configuredUrl =
