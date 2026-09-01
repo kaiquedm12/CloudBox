@@ -124,6 +124,20 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void onlyAgentOperationsBypassJwtAuthentication() throws Exception {
+        UUID resourceId = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/nodes/register"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/nodes/" + resourceId + "/heartbeat"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/nodes/" + resourceId + "/pending-commands"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/containers/" + resourceId + "/status"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void loginRejectsInvalidPassword() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
