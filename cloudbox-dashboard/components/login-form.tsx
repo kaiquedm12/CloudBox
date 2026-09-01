@@ -1,11 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ApiError, apiRequest } from "@/lib/api";
 
 export function LoginForm({ returnTo }: { returnTo: string }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -25,8 +23,7 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
         },
         redirectOnUnauthorized: false,
       });
-      router.replace(returnTo);
-      router.refresh();
+      window.location.assign(returnTo);
     } catch (requestError) {
       setError(
         requestError instanceof ApiError
