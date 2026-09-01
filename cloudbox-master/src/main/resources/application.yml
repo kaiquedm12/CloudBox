@@ -1,11 +1,11 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/cloudbox
-    username: cloudbox
-    password: cloudbox
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:cloudbox}
+    username: ${PGUSER:cloudbox}
+    password: ${PGPASSWORD:cloudbox}
   jpa:
     hibernate:
       ddl-auto: validate
