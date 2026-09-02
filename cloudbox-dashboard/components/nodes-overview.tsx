@@ -6,12 +6,7 @@ import {
   type RealtimeConnectionStatus,
 } from "@/hooks/use-cluster-status";
 import { useNodes } from "@/hooks/use-nodes";
-
-const timeFormatter = new Intl.DateTimeFormat("pt-BR", {
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-});
+import { useLanguage } from "@/lib/i18n";
 
 function OverviewHeader({
   dataUpdatedAt,
@@ -20,9 +15,15 @@ function OverviewHeader({
   dataUpdatedAt: number;
   connectionStatus: RealtimeConnectionStatus;
 }) {
+  const { locale, t } = useLanguage();
+  const timeFormatter = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
   const updateLabel = dataUpdatedAt
-    ? `Atualizado às ${timeFormatter.format(dataUpdatedAt)}`
-    : "Aguardando primeira leitura";
+    ? `${t("updatedAt")} ${timeFormatter.format(dataUpdatedAt)}`
+    : t("awaitingFirstRead");
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-blue-100 bg-white/70 p-6 shadow-sm backdrop-blur sm:p-8 dark:border-blue-950 dark:bg-slate-900/60">
@@ -30,14 +31,13 @@ function OverviewHeader({
       <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
-            Visão geral
+            {t("overview")}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            Nós do cluster
+            {t("clusterNodes")}
           </h1>
           <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-            Acompanhe a disponibilidade e os recursos de todos os nós registrados no
-            orquestrador.
+            {t("clusterDescription")}
           </p>
         </div>
         <div
@@ -54,10 +54,10 @@ function OverviewHeader({
           />
           <span>
             {connectionStatus === "connected"
-              ? "Conectado em tempo real"
+              ? t("realtimeConnected")
               : connectionStatus === "reconnecting"
-                ? "Reconectando..."
-                : "Conectando..."}
+                ? t("reconnecting")
+                : t("connecting")}
             <span className="ml-2 hidden text-xs text-slate-400 lg:inline">
               · {updateLabel}
             </span>
@@ -69,9 +69,10 @@ function OverviewHeader({
 }
 
 function LoadingState() {
+  const { t } = useLanguage();
   return (
     <div
-      aria-label="Carregando nós do cluster"
+      aria-label={t("loadingNodes")}
       className="grid gap-5 md:grid-cols-2 xl:grid-cols-3"
       role="status"
     >
@@ -99,6 +100,7 @@ function LoadingState() {
 }
 
 export function NodesOverview() {
+  const { locale, t } = useLanguage();
   const { connectionStatus } = useClusterStatus();
   const {
     data,
@@ -136,11 +138,10 @@ export function NodesOverview() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-semibold text-rose-900">
-                Não foi possível conectar ao orquestrador
+                {t("orchestratorError")}
               </p>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-rose-700">
-                Verifique se o serviço está em execução e se a URL configurada está
-                acessível. {error instanceof Error ? error.message : ""}
+                {t("orchestratorHelp")} {error instanceof Error ? error.message : ""}
               </p>
             </div>
             <button
@@ -148,7 +149,7 @@ export function NodesOverview() {
               onClick={() => void refetch()}
               type="button"
             >
-              Tentar novamente
+              {t("tryAgain")}
             </button>
           </div>
         </section>
@@ -161,7 +162,7 @@ export function NodesOverview() {
       return first.status === "ONLINE" ? -1 : 1;
     }
 
-    return first.name.localeCompare(second.name, "pt-BR");
+    return first.name.localeCompare(second.name, locale);
   });
   const onlineCount = nodes.filter((node) => node.status === "ONLINE").length;
   const offlineCount = nodes.length - onlineCount;
@@ -173,10 +174,10 @@ export function NodesOverview() {
         dataUpdatedAt={dataUpdatedAt}
       />
 
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]" aria-label="Resumo do cluster">
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]" aria-label={t("clusterSummary")}>
         <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <strong className="mr-1.5 text-slate-950">{nodes.length}</strong>
-          {nodes.length === 1 ? "nó registrado" : "nós registrados"}
+          {nodes.length === 1 ? t("registeredNode") : t("registeredNodes")}
         </div>
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700 transition hover:-translate-y-0.5 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
           <strong className="mr-1.5">{onlineCount}</strong> online
@@ -185,7 +186,7 @@ export function NodesOverview() {
           <strong className="mr-1.5">{offlineCount}</strong> offline
         </div>
         <div className="hidden items-center px-3 text-xs text-slate-400 lg:flex">
-          Atualizações recebidas via WebSocket
+          {t("websocketUpdates")}
         </div>
       </div>
 
@@ -194,20 +195,20 @@ export function NodesOverview() {
           className="flex flex-col justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center"
           role="alert"
         >
-          <span>A última atualização falhou. Os dados exibidos podem estar desatualizados.</span>
+          <span>{t("staleData")}</span>
           <button
             className="font-semibold underline underline-offset-4"
             onClick={() => void refetch()}
             type="button"
           >
-            Atualizar agora
+            {t("updateNow")}
           </button>
         </div>
       ) : null}
 
       {nodes.length > 0 ? (
         <section
-          aria-label="Nós registrados"
+          aria-label={t("registeredNodesLabel")}
           className="grid gap-5 md:grid-cols-2 xl:grid-cols-3"
         >
           {nodes.map((node) => (
@@ -217,14 +218,13 @@ export function NodesOverview() {
       ) : (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center">
           <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-slate-100 text-xs font-bold text-slate-500">
-            NÓ
+            {t("nodeAbbreviation")}
           </div>
           <h2 className="mt-4 text-lg font-semibold text-slate-900">
-            Nenhum nó registrado
+            {t("noNodes")}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-            Assim que um agente se registrar no orquestrador, seus recursos aparecerão
-            automaticamente nesta tela.
+            {t("noNodesDescription")}
           </p>
         </section>
       )}

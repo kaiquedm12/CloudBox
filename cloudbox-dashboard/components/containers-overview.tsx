@@ -5,8 +5,10 @@ import { ContainerList } from "@/components/container-list";
 import { CreateContainerModal } from "@/components/create-container-modal";
 import { useContainers, useRemoveContainer, useStopContainer } from "@/hooks/use-containers";
 import { useNodes } from "@/hooks/use-nodes";
+import { useLanguage } from "@/lib/i18n";
 
 export function ContainersOverview() {
+  const { t } = useLanguage();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const containersQuery = useContainers();
   const nodesQuery = useNodes();
@@ -35,7 +37,7 @@ export function ContainersOverview() {
               Containers
             </h1>
             <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-              Solicite novas cargas e acompanhe o status dos containers agendados no cluster.
+              {t("containersDescription")}
             </p>
           </div>
           <button
@@ -43,24 +45,24 @@ export function ContainersOverview() {
             onClick={() => setIsModalOpen(true)}
             type="button"
           >
-            Novo container
+            {t("newContainer")}
           </button>
         </div>
       </div>
 
       {containersQuery.isPending ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
-          Carregando containers...
+          {t("loadingContainers")}
         </div>
       ) : containersQuery.isError ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6" role="alert">
-          <p className="font-semibold text-rose-900">Não foi possível carregar os containers</p>
+          <p className="font-semibold text-rose-900">{t("loadContainersFailed")}</p>
           <button
             className="mt-3 text-sm font-semibold text-rose-700 underline underline-offset-4"
             onClick={() => void containersQuery.refetch()}
             type="button"
           >
-            Tentar novamente
+            {t("tryAgain")}
           </button>
         </div>
       ) : (

@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type FormEvent, type MouseEvent } from "rea
 import { useCreateContainer } from "@/hooks/use-containers";
 import { ApiError } from "@/lib/api";
 import { createContainerSchema } from "@/lib/container-schema";
+import { useLanguage, type MessageKey } from "@/lib/i18n";
 import type { ClusterNode } from "@/types/cluster-node";
 import type { CloudContainer, CreateContainerRequest } from "@/types/container";
 
@@ -51,6 +52,7 @@ export function CreateContainerModal({
   nodes: ClusterNode[];
   onClose: () => void;
 }) {
+  const { language, t } = useLanguage();
   const titleId = useId();
   const mutation = useCreateContainer();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -82,9 +84,15 @@ export function CreateContainerModal({
 
     if (!parsed.success) {
       const errors: FieldErrors = {};
+      const translatedErrors: Record<keyof CreateContainerRequest, MessageKey> = {
+        imageName: "invalidImage",
+        cpuCores: "invalidCpu",
+        memoryMb: "invalidRam",
+        diskMb: "invalidDisk",
+      };
       for (const issue of parsed.error.issues) {
         const field = issue.path[0] as keyof CreateContainerRequest;
-        errors[field] ??= issue.message;
+        errors[field] ??= language === "en" ? t(translatedErrors[field]) : issue.message;
       }
       setFieldErrors(errors);
       return;
@@ -111,10 +119,10 @@ export function CreateContainerModal({
   const requestError = mutation.error;
   const errorMessage =
     requestError instanceof ApiError && requestError.status === 409
-      ? "Não há nenhum nó online com CPU e RAM suficientes para esta solicitação. Reduza os recursos ou tente novamente mais tarde."
+      ? t("capacityError")
       : requestError instanceof Error
         ? requestError.message
-        : "Não foi possível solicitar o container.";
+        : t("requestFailed");
 
   return (
     <div
@@ -130,14 +138,14 @@ export function CreateContainerModal({
         <div className="flex items-start justify-between gap-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
-              Agendador CloudBox
+              {t("scheduler")}
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950" id={titleId}>
-              Novo container
+              {t("newContainer")}
             </h2>
           </div>
           <button
-            aria-label="Fechar"
+            aria-label={t("close")}
             className="grid size-9 shrink-0 place-items-center rounded-lg text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
             disabled={mutation.isPending}
             onClick={onClose}
@@ -150,10 +158,10 @@ export function CreateContainerModal({
         {createdContainer ? (
           <div className="mt-7">
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5" role="status">
-              <p className="font-semibold text-emerald-900">Container criado com sucesso</p>
+              <p className="font-semibold text-emerald-900">{t("createSuccess")}</p>
               <p className="mt-2 text-sm leading-6 text-emerald-700">
-                A imagem <strong>{createdContainer.imageName}</strong> foi alocada no nó{" "}
-                <strong>{chosenNode?.name ?? createdContainer.nodeId ?? "selecionado"}</strong>.
+                {t("imageAllocated")} <strong>{createdContainer.imageName}</strong> {t("allocatedOnNode")}{" "}
+                <strong>{chosenNode?.name ?? createdContainer.nodeId ?? t("selected")}</strong>.
               </p>
               <p className="mt-3 break-all font-mono text-xs text-emerald-600">
                 {createdContainer.id}
@@ -165,7 +173,7 @@ export function CreateContainerModal({
                 onClick={onClose}
                 type="button"
               >
-                Concluir
+                {t("finish")}
               </button>
             </div>
           </div>
@@ -177,7 +185,7 @@ export function CreateContainerModal({
               disabled={mutation.isPending}
               error={fieldErrors.imageName}
               id="imageName"
-              label="Imagem Docker"
+              label={t("dockerImage")}
               name="imageName"
               placeholder="nginx:1.27"
               type="text"
@@ -190,7 +198,7 @@ export function CreateContainerModal({
                 error={fieldErrors.cpuCores}
                 id="cpuCores"
                 inputMode="numeric"
-                label="CPUs solicitadas"
+                label={t("requestedCpus")}
                 min="1"
                 name="cpuCores"
                 step="1"
@@ -202,7 +210,7 @@ export function CreateContainerModal({
                 error={fieldErrors.memoryMb}
                 id="memoryMb"
                 inputMode="numeric"
-                label="RAM solicitada (MB)"
+                label={t("requestedRam")}
                 min="1"
                 name="memoryMb"
                 step="1"
@@ -216,7 +224,7 @@ export function CreateContainerModal({
               error={fieldErrors.diskMb}
               id="diskMb"
               inputMode="numeric"
-              label="Disco solicitado (MB)"
+              label={t("requestedDisk")}
               min="1"
               name="diskMb"
               step="1"
@@ -239,14 +247,14 @@ export function CreateContainerModal({
                 onClick={onClose}
                 type="button"
               >
-                Cancelar
+                {t("cancel")}
               </button>
               <button
                 className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={mutation.isPending}
                 type="submit"
               >
-                {mutation.isPending ? "Solicitando..." : "Solicitar container"}
+                {mutation.isPending ? t("requesting") : t("requestContainer")}
               </button>
             </div>
           </form>
