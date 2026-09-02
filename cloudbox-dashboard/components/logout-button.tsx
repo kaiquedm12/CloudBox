@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 export function LogoutButton() {
+  const { t } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -32,7 +34,7 @@ export function LogoutButton() {
       onClick={() => void logout()}
       type="button"
     >
-      {isLoggingOut ? "Saindo..." : "Sair"}
+      {isLoggingOut ? t("signingOut") : t("signOut")}
     </button>
   );
 }

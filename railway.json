@@ -5,6 +5,7 @@
     "dockerfilePath": "cloudbox-master/Dockerfile"
   },
   "deploy": {
+    "startCommand": "java -jar app.jar",
     "healthcheckPath": "/actuator/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",

@@ -2,8 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiRequest } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 export function LoginForm({ returnTo }: { returnTo: string }) {
+  const { t } = useLanguage();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -28,7 +30,7 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
       setError(
         requestError instanceof ApiError
           ? requestError.message
-          : "Não foi possível realizar o login.",
+          : t("loginFailed"),
       );
     } finally {
       setIsSubmitting(false);
@@ -51,7 +53,7 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
           disabled={isSubmitting}
           id="email"
           name="email"
-          placeholder="voce@empresa.com"
+          placeholder={t("emailPlaceholder")}
           required
           type="email"
         />
@@ -62,7 +64,7 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
           className="mb-2 block text-sm font-medium text-slate-700"
           htmlFor="password"
         >
-          Senha
+          {t("password")}
         </label>
         <input
           autoComplete="current-password"
@@ -71,7 +73,7 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
           id="password"
           minLength={1}
           name="password"
-          placeholder="Digite sua senha"
+          placeholder={t("passwordPlaceholder")}
           required
           type="password"
         />
@@ -92,7 +94,7 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
         disabled={isSubmitting}
         type="submit"
       >
-        {isSubmitting ? "Entrando..." : "Entrar"}
+        {isSubmitting ? t("signingIn") : t("signIn")}
       </button>
     </form>
   );

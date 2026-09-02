@@ -1,15 +1,18 @@
+"use client";
+
+import { useLanguage, type MessageKey } from "@/lib/i18n";
 import type { CloudContainer, ContainerStatus } from "@/types/container";
 
-const statusLabels: Record<ContainerStatus, string> = {
-  PENDING: "Pendente",
-  SCHEDULED: "Agendado",
-  RUNNING: "Em execução",
-  STOPPING: "Parando",
-  STOPPED: "Parado",
-  REMOVING: "Removendo",
-  REMOVED: "Removido",
-  ERROR: "Erro",
-  FAILED: "Falhou",
+const statusLabelKeys: Record<ContainerStatus, MessageKey> = {
+  PENDING: "pending",
+  SCHEDULED: "scheduled",
+  RUNNING: "running",
+  STOPPING: "stopping",
+  STOPPED: "stopped",
+  REMOVING: "removing",
+  REMOVED: "removed",
+  ERROR: "error",
+  FAILED: "failed",
 };
 
 const statusClasses: Record<ContainerStatus, string> = {
@@ -24,19 +27,14 @@ const statusClasses: Record<ContainerStatus, string> = {
   FAILED: "bg-rose-50 text-rose-700 ring-rose-200",
 };
 
-const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
-  dateStyle: "short",
-  timeStyle: "short",
-});
-
-function formatCreatedAt(value: string) {
+function formatCreatedAt(value: string, formatter: Intl.DateTimeFormat, unavailable: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Data indisponível" : dateFormatter.format(date);
+  return Number.isNaN(date.getTime()) ? unavailable : formatter.format(date);
 }
 
 export function ContainerList({
   containers,
-  emptyMessage = "Nenhum container encontrado.",
+  emptyMessage,
   nodeNames,
   showNode = false,
   onStop,
@@ -53,10 +51,14 @@ export function ContainerList({
   busyContainerId?: string;
   actionError?: string;
 }) {
+  const { locale, t } = useLanguage();
+  const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" });
+  const resolvedEmptyMessage = emptyMessage ?? t("noContainers");
+
   if (containers.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center text-sm text-slate-500">
-        {emptyMessage}
+        {resolvedEmptyMessage}
       </div>
     );
   }
@@ -67,12 +69,12 @@ export function ContainerList({
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>
-            <th className="px-5 py-3 font-semibold">Imagem</th>
-            {showNode ? <th className="px-5 py-3 font-semibold">Nó</th> : null}
-            <th className="px-5 py-3 font-semibold">Status</th>
-            <th className="px-5 py-3 font-semibold">Recursos</th>
-            <th className="px-5 py-3 font-semibold">Criado em</th>
-            {(onStop || onRemove) ? <th className="px-5 py-3 text-right font-semibold">Ações</th> : null}
+            <th className="px-5 py-3 font-semibold">{t("image")}</th>
+            {showNode ? <th className="px-5 py-3 font-semibold">{t("node")}</th> : null}
+            <th className="px-5 py-3 font-semibold">{t("status")}</th>
+            <th className="px-5 py-3 font-semibold">{t("resources")}</th>
+            <th className="px-5 py-3 font-semibold">{t("createdAt")}</th>
+            {(onStop || onRemove) ? <th className="px-5 py-3 text-right font-semibold">{t("actions")}</th> : null}
           </tr></thead>
           <tbody className="divide-y divide-slate-100">
             {containers.map((container) => {
@@ -80,13 +82,13 @@ export function ContainerList({
               const removable = ["RUNNING", "STOPPED", "ERROR", "FAILED"].includes(container.status);
               return <tr className="align-middle" key={container.id}>
                 <td className="px-5 py-4"><p className="font-mono font-semibold text-slate-950">{container.imageName}</p><p className="mt-1 max-w-52 truncate text-xs text-slate-400" title={container.id}>{container.id}</p>{container.errorMessage ? <p className="mt-2 text-xs text-rose-700">{container.errorMessage}</p> : null}</td>
-                {showNode ? <td className="px-5 py-4 font-medium text-slate-700">{container.nodeId ? nodeNames?.get(container.nodeId) ?? container.nodeId : "Aguardando"}</td> : null}
-                <td className="px-5 py-4"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[container.status]}`}>{statusLabels[container.status]}</span></td>
+                {showNode ? <td className="px-5 py-4 font-medium text-slate-700">{container.nodeId ? nodeNames?.get(container.nodeId) ?? container.nodeId : t("awaiting")}</td> : null}
+                <td className="px-5 py-4"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[container.status]}`}>{t(statusLabelKeys[container.status])}</span></td>
                 <td className="whitespace-nowrap px-5 py-4 text-slate-600">{container.cpuCores} CPU · {container.memoryMb} MB</td>
-                <td className="whitespace-nowrap px-5 py-4 text-slate-600">{formatCreatedAt(container.createdAt)}</td>
+                <td className="whitespace-nowrap px-5 py-4 text-slate-600">{formatCreatedAt(container.createdAt, dateFormatter, t("dateUnavailable"))}</td>
                 {(onStop || onRemove) ? <td className="px-5 py-4"><div className="flex justify-end gap-2">
-                  {onStop ? <button className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || container.status !== "RUNNING"} onClick={() => onStop(container.id)} type="button">Parar</button> : null}
-                  {onRemove ? <button className="rounded-lg border border-rose-200 px-3 py-2 font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || !removable} onClick={() => onRemove(container.id)} type="button">Remover</button> : null}
+                  {onStop ? <button className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || container.status !== "RUNNING"} onClick={() => onStop(container.id)} type="button">{t("stop")}</button> : null}
+                  {onRemove ? <button className="rounded-lg border border-rose-200 px-3 py-2 font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || !removable} onClick={() => onRemove(container.id)} type="button">{t("remove")}</button> : null}
                 </div></td> : null}
               </tr>;
             })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/lib/i18n";
 
 type Theme = "light" | "dark";
 
@@ -11,6 +12,7 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeToggle() {
+  const { t } = useLanguage();
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
@@ -27,11 +29,11 @@ export function ThemeToggle() {
 
   return (
     <button
-      aria-label={isDark ? "Ativar modo claro" : "Ativar modo escuro"}
+      aria-label={isDark ? t("lightMode") : t("darkMode")}
       aria-pressed={isDark}
       className="group grid size-10 place-items-center rounded-xl border border-slate-200 bg-white/80 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300 dark:hover:border-blue-700 dark:hover:text-blue-400"
       onClick={toggleTheme}
-      title={isDark ? "Usar tema claro" : "Usar tema escuro"}
+      title={isDark ? t("lightTheme") : t("darkTheme")}
       type="button"
     >
       {isDark ? (
