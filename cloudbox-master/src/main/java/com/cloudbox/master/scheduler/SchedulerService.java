@@ -23,9 +23,10 @@ public class SchedulerService {
         this.nodeScoringStrategy = nodeScoringStrategy;
     }
 
-    public Optional<Node> schedule(BigDecimal cpuRequested, Integer ramRequestedMb) {
+    public Optional<Node> schedule(BigDecimal cpuRequested, Integer ramRequestedMb, Integer diskRequestedMb) {
         List<Node> onlineNodes = nodeRepository.findByStatus(NodeStatus.ONLINE);
-        List<Node> candidates = nodeCandidateFilter.filterCandidates(onlineNodes, cpuRequested, ramRequestedMb);
-        return nodeScoringStrategy.selectBest(candidates, cpuRequested, ramRequestedMb);
+        List<Node> candidates = nodeCandidateFilter.filterCandidates(
+                onlineNodes, cpuRequested, ramRequestedMb, diskRequestedMb);
+        return nodeScoringStrategy.selectBest(candidates, cpuRequested, ramRequestedMb, diskRequestedMb);
     }
 }

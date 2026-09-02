@@ -27,6 +27,8 @@ class NodeCandidateFilterTest {
         node.setCpuFree(cpuFree);
         node.setRamTotalMb(16384);
         node.setRamFreeMb(ramFreeMb);
+        node.setDiskTotalMb(100_000);
+        node.setDiskFreeMb(50_000);
         node.setTemperatureCelsius(temperature);
         return node;
     }
@@ -39,7 +41,7 @@ class NodeCandidateFilterTest {
         Node lowRam = node(UUID.randomUUID(), NodeStatus.ONLINE, new BigDecimal("4.00"), 512, null);
 
         List<Node> result = filter.filterCandidates(
-                List.of(apt, offline, lowCpu, lowRam), new BigDecimal("2.00"), 1024);
+                List.of(apt, offline, lowCpu, lowRam), new BigDecimal("2.00"), 1024, 1024);
 
         assertThat(result).containsExactly(apt);
     }
@@ -50,7 +52,7 @@ class NodeCandidateFilterTest {
         Node coolNode = node(UUID.randomUUID(), NodeStatus.ONLINE, new BigDecimal("8.00"), 16384, new BigDecimal("60.00"));
 
         List<Node> result = filter.filterCandidates(
-                List.of(hotNode, coolNode), new BigDecimal("1.00"), 1024);
+                List.of(hotNode, coolNode), new BigDecimal("1.00"), 1024, 1024);
 
         assertThat(result).containsExactly(coolNode);
     }
@@ -59,8 +61,18 @@ class NodeCandidateFilterTest {
     void acceptsNodeWithoutTemperatureSensor() {
         Node noSensor = node(UUID.randomUUID(), NodeStatus.ONLINE, new BigDecimal("8.00"), 16384, null);
 
-        List<Node> result = filter.filterCandidates(List.of(noSensor), new BigDecimal("1.00"), 1024);
+        List<Node> result = filter.filterCandidates(List.of(noSensor), new BigDecimal("1.00"), 1024, 1024);
 
         assertThat(result).containsExactly(noSensor);
+    }
+
+    @Test
+    void rejectsNodeWithoutEnoughDisk() {
+        Node node = node(UUID.randomUUID(), NodeStatus.ONLINE, new BigDecimal("8.00"), 16384, null);
+        node.setDiskFreeMb(100);
+
+        List<Node> result = filter.filterCandidates(List.of(node), new BigDecimal("1.00"), 1024, 150);
+
+        assertThat(result).isEmpty();
     }
 }

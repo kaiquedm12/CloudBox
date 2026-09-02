@@ -39,7 +39,7 @@ public class ContainerController {
         Optional<ContainerResponse> response = containerService.create(request);
         if (response.isEmpty()) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("error", "Nenhum nó disponível com recursos suficientes no momento"));
+                    .body(Map.of("error", "Nenhum nó disponível com CPU, RAM e disco suficientes no momento"));
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(response.get());
     }

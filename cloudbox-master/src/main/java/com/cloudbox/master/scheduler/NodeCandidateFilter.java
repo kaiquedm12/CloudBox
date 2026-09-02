@@ -15,13 +15,15 @@ public class NodeCandidateFilter {
         this.schedulerProperties = schedulerProperties;
     }
 
-    public List<Node> filterCandidates(List<Node> allNodes, BigDecimal cpuRequested, Integer ramRequestedMb) {
+    public List<Node> filterCandidates(List<Node> allNodes, BigDecimal cpuRequested, Integer ramRequestedMb,
+                                       Integer diskRequestedMb) {
         BigDecimal maxTemperatureCelsius = schedulerProperties.getMaxTemperatureCelsius();
 
         return allNodes.stream()
                 .filter(node -> node.getStatus() == NodeStatus.ONLINE)
                 .filter(node -> node.getCpuFree().compareTo(cpuRequested) >= 0)
                 .filter(node -> node.getRamFreeMb() >= ramRequestedMb)
+                .filter(node -> node.getDiskFreeMb() >= diskRequestedMb)
                 .filter(node -> node.getTemperatureCelsius() == null
                         || node.getTemperatureCelsius().compareTo(maxTemperatureCelsius) < 0)
                 .toList();

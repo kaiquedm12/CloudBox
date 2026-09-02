@@ -34,6 +34,8 @@ class SchedulerServiceTest {
         node.setCpuFree(cpuFree);
         node.setRamTotalMb(ramTotalMb);
         node.setRamFreeMb(ramFreeMb);
+        node.setDiskTotalMb(100_000);
+        node.setDiskFreeMb(50_000);
         node.setTemperatureCelsius(temperature);
         return node;
     }
@@ -45,7 +47,7 @@ class SchedulerServiceTest {
         Node tight = node(UUID.randomUUID(), NodeStatus.ONLINE, new BigDecimal("2.00"), new BigDecimal("2.00"), 4096, 2048, null);
         when(nodeRepository.findByStatus(NodeStatus.ONLINE)).thenReturn(List.of(small, big, tight));
 
-        Optional<Node> result = schedulerService().schedule(new BigDecimal("1.00"), 1024);
+        Optional<Node> result = schedulerService().schedule(new BigDecimal("1.00"), 1024, 1024);
 
         assertThat(result).hasValue(big);
     }
@@ -56,7 +58,7 @@ class SchedulerServiceTest {
         Node lowRam = node(UUID.randomUUID(), NodeStatus.ONLINE, new BigDecimal("8.00"), new BigDecimal("8.00"), 16384, 512, null);
         when(nodeRepository.findByStatus(NodeStatus.ONLINE)).thenReturn(List.of(lowCpu, lowRam));
 
-        Optional<Node> result = schedulerService().schedule(new BigDecimal("2.00"), 2048);
+        Optional<Node> result = schedulerService().schedule(new BigDecimal("2.00"), 2048, 1024);
 
         assertThat(result).isEmpty();
     }
@@ -66,7 +68,7 @@ class SchedulerServiceTest {
         Node offline = node(UUID.randomUUID(), NodeStatus.OFFLINE, new BigDecimal("8.00"), new BigDecimal("8.00"), 16384, 16384, null);
         when(nodeRepository.findByStatus(NodeStatus.ONLINE)).thenReturn(List.of(offline));
 
-        Optional<Node> result = schedulerService().schedule(new BigDecimal("1.00"), 1024);
+        Optional<Node> result = schedulerService().schedule(new BigDecimal("1.00"), 1024, 1024);
 
         assertThat(result).isEmpty();
     }
@@ -76,7 +78,7 @@ class SchedulerServiceTest {
         Node hot = node(UUID.randomUUID(), NodeStatus.ONLINE, new BigDecimal("8.00"), new BigDecimal("8.00"), 16384, 16384, new BigDecimal("90.00"));
         when(nodeRepository.findByStatus(NodeStatus.ONLINE)).thenReturn(List.of(hot));
 
-        Optional<Node> result = schedulerService().schedule(new BigDecimal("1.00"), 1024);
+        Optional<Node> result = schedulerService().schedule(new BigDecimal("1.00"), 1024, 1024);
 
         assertThat(result).isEmpty();
     }

@@ -39,7 +39,7 @@ public class ContainerService {
     @Transactional
     public Optional<ContainerResponse> create(ContainerRequest request) {
         Optional<Node> node = schedulerService.schedule(
-                BigDecimal.valueOf(request.cpuCores()), request.memoryMb());
+                BigDecimal.valueOf(request.cpuCores()), request.memoryMb(), request.diskMb());
         if (node.isEmpty()) {
             return Optional.empty();
         }
