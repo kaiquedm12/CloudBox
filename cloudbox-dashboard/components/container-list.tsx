@@ -84,7 +84,7 @@ export function ContainerList({
                 <td className="px-5 py-4"><p className="font-mono font-semibold text-slate-950">{container.imageName}</p><p className="mt-1 max-w-52 truncate text-xs text-slate-400" title={container.id}>{container.id}</p>{container.errorMessage ? <p className="mt-2 text-xs text-rose-700">{container.errorMessage}</p> : null}</td>
                 {showNode ? <td className="px-5 py-4 font-medium text-slate-700">{container.nodeId ? nodeNames?.get(container.nodeId) ?? container.nodeId : t("awaiting")}</td> : null}
                 <td className="px-5 py-4"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[container.status]}`}>{t(statusLabelKeys[container.status])}</span></td>
-                <td className="whitespace-nowrap px-5 py-4 text-slate-600">{container.cpuCores} CPU · {container.memoryMb} MB</td>
+                <td className="whitespace-nowrap px-5 py-4 text-slate-600">{container.cpuCores} CPU · {container.memoryMb} MB RAM · {container.diskMb} MB disco</td>
                 <td className="whitespace-nowrap px-5 py-4 text-slate-600">{formatCreatedAt(container.createdAt, dateFormatter, t("dateUnavailable"))}</td>
                 {(onStop || onRemove) ? <td className="px-5 py-4"><div className="flex justify-end gap-2">
                   {onStop ? <button className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || container.status !== "RUNNING"} onClick={() => onStop(container.id)} type="button">{t("stop")}</button> : null}

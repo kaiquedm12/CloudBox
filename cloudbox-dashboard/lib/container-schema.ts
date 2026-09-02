@@ -5,6 +5,7 @@ export const createContainerSchema = z.object({
     .string()
     .trim()
     .min(1, "Informe a imagem Docker.")
+    .regex(/^\S+$/, "O nome da imagem Docker não pode conter espaços.")
     .max(255, "A imagem deve ter no máximo 255 caracteres."),
   cpuCores: z.coerce
     .number({ error: "Informe a quantidade de CPUs." })

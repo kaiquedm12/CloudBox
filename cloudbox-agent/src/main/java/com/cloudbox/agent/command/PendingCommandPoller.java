@@ -43,6 +43,7 @@ public class PendingCommandPoller {
             fixedDelayString = "${cloudbox.agent.command-poll-interval:5000}")
     public void poll() {
         try {
+            executionService.verifyDockerAvailable();
             AgentCredentials credentials = registrationService.ensureRegistered();
             for (PendingCommand command : orchestratorClient.pendingCommands(
                     credentials.nodeId(), credentials.token())) {
