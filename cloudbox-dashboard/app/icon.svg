@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="cloudbox-gradient" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3b82f6" />
+      <stop offset="1" stop-color="#1d4ed8" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#cloudbox-gradient)" />
+  <circle cx="51" cy="13" r="10" fill="#67e8f9" opacity="0.38" />
+  <text
+    x="32"
+    y="40"
+    fill="#ffffff"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="24"
+    font-weight="700"
+    letter-spacing="-1"
+    text-anchor="middle"
+  >CB</text>
+</svg>
