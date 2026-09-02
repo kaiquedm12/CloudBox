@@ -1,6 +1,6 @@
 cloudbox:
   agent:
-    master-url: ${CLOUDBOX_MASTER_URL:http://cloudbox-production-55f7.up.railway.app/}
+    master-url: ${CLOUDBOX_MASTER_URL:https://cloudbox-production-55f7.up.railway.app/}
     name: ${AGENT_NAME:${HOSTNAME:cloudbox-agent}}
     token-file: ${AGENT_TOKEN_FILE:${user.home}/.cloudbox/agent-credentials.properties}
     heartbeat-interval: ${AGENT_HEARTBEAT_INTERVAL:10000}
