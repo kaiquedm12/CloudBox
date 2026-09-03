@@ -33,7 +33,7 @@ export default async function RootLayout({
         <Providers realtimeEnabled={isAuthenticated}>
           <div className="min-h-screen">
             <Header isAuthenticated={isAuthenticated} />
-            <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-8 sm:py-12 lg:px-10">
+            <main className="mx-auto w-full max-w-7xl px-4 py-7 sm:px-8 sm:py-9 lg:px-10">
               {children}
             </main>
           </div>
