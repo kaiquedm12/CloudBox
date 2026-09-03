@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent, type MouseEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { useCreateContainer } from "@/hooks/use-containers";
 import { ApiError } from "@/lib/api";
 import { createContainerSchema } from "@/lib/container-schema";
@@ -54,20 +54,50 @@ export function CreateContainerModal({
 }) {
   const { language, t } = useLanguage();
   const titleId = useId();
+  const dialogRef = useRef<HTMLElement>(null);
   const mutation = useCreateContainer();
+  const isPendingRef = useRef(mutation.isPending);
+  const onCloseRef = useRef(onClose);
+  isPendingRef.current = mutation.isPending;
+  onCloseRef.current = onClose;
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [createdContainer, setCreatedContainer] = useState<CloudContainer | null>(null);
 
   useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape" && !mutation.isPending) {
-        onClose();
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isPendingRef.current) {
+        onCloseRef.current();
+      }
+
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     }
 
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [mutation.isPending, onClose]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -132,7 +162,8 @@ export function CreateContainerModal({
       <section
         aria-labelledby={titleId}
         aria-modal="true"
-        className="my-6 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8"
+        className="my-6 w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-8"
+        ref={dialogRef}
         role="dialog"
       >
         <div className="flex items-start justify-between gap-6">
@@ -146,7 +177,7 @@ export function CreateContainerModal({
           </div>
           <button
             aria-label={t("close")}
-            className="grid size-9 shrink-0 place-items-center rounded-lg text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            className="grid size-9 shrink-0 place-items-center rounded-lg text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
             disabled={mutation.isPending}
             onClick={onClose}
             type="button"

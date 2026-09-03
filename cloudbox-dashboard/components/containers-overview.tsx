@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ContainerList } from "@/components/container-list";
 import { CreateContainerModal } from "@/components/create-container-modal";
+import { BoxIcon, PlusIcon } from "@/components/ui-icons";
 import { useContainers, useRemoveContainer, useStopContainer } from "@/hooks/use-containers";
 import { useNodes } from "@/hooks/use-nodes";
 import { useLanguage } from "@/lib/i18n";
@@ -25,30 +26,28 @@ export function ContainersOverview() {
   );
 
   return (
-    <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-3xl border border-blue-100 bg-white/70 p-6 shadow-sm sm:p-8 dark:border-blue-950 dark:bg-slate-900/60">
-        <div aria-hidden="true" className="absolute -right-16 -top-20 size-52 rounded-full bg-blue-100/70 blur-3xl dark:bg-blue-900/20" />
-        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
-              CloudBox
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Containers
-            </h1>
-            <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-              {t("containersDescription")}
-            </p>
+    <div className="space-y-7">
+      <header className="flex flex-col justify-between gap-5 border-b border-slate-200 pb-6 dark:border-slate-800 sm:flex-row sm:items-end">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+            <BoxIcon className="size-4" /> CloudBox
           </div>
-          <button
-            className="shrink-0 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-            onClick={() => setIsModalOpen(true)}
-            type="button"
-          >
-            {t("newContainer")}
-          </button>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">
+            Containers
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400 sm:text-base">
+            {t("containersDescription")}
+          </p>
         </div>
-      </div>
+        <button
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:shadow-none"
+          onClick={() => setIsModalOpen(true)}
+          type="button"
+        >
+          <PlusIcon className="size-4" />
+          {t("newContainer")}
+        </button>
+      </header>
 
       {containersQuery.isPending ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
@@ -71,6 +70,7 @@ export function ContainersOverview() {
           nodeNames={nodeNames}
           showNode
           actionError={stopContainer.error?.message ?? removeContainer.error?.message}
+          busyAction={stopContainer.isPending ? "stop" : removeContainer.isPending ? "remove" : undefined}
           busyContainerId={
             stopContainer.isPending
               ? stopContainer.variables
