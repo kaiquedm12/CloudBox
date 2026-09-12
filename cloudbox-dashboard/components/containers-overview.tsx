@@ -19,6 +19,10 @@ export function ContainersOverview() {
     () => new Map(nodes.map((node) => [node.id, node.name])),
     [nodes],
   );
+  const nodeStatuses = useMemo(
+    () => new Map(nodes.map((node) => [node.id, node.status] as const)),
+    [nodes],
+  );
 
   return (
     <div className="space-y-8">
@@ -59,7 +63,7 @@ export function ContainersOverview() {
           </button>
         </div>
       ) : (
-        <ContainerList containers={containers} nodeNames={nodeNames} showNode />
+        <ContainerList containers={containers} nodeNames={nodeNames} nodeStatuses={nodeStatuses} showNode />
       )}
 
       {isModalOpen ? (

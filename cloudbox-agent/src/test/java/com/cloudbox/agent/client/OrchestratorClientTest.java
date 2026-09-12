@@ -41,7 +41,9 @@ class OrchestratorClientTest {
         server.createContext("/api/nodes/" + nodeId + "/pending-commands", exchange -> {
             authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
             respond(exchange, 200, "[{\"containerId\":\"" + nodeId
-                    + "\",\"imageName\":\"nginx:alpine\",\"cpuCores\":1,\"memoryMb\":64,\"diskMb\":128}]");
+                    + "\",\"imageName\":\"nginx:alpine\",\"cpuCores\":1,\"memoryMb\":64,\"diskMb\":128,"
+                    + "\"ports\":[{\"containerPort\":80,\"hostPort\":null,\"protocol\":\"TCP\","
+                    + "\"exposure\":\"HTTP\",\"bindAddress\":null}]}]");
         });
         server.createContext("/api/containers/" + nodeId + "/status", exchange -> {
             authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
@@ -63,14 +65,15 @@ class OrchestratorClientTest {
     @Test
     void shouldUseMasterRegistrationContract() {
         NodeRegisterResponse response = client.register(new NodeRegisterRequest(
-                "node-a", java.math.BigDecimal.valueOf(8), 16_384, 200_000));
+                "node-a", java.math.BigDecimal.valueOf(8), 16_384, 200_000, "node-a.example.test"));
 
         assertThat(response).isEqualTo(new NodeRegisterResponse(nodeId, "agent-token"));
         assertThat(registrationBody.get())
                 .contains("\"name\":\"node-a\"")
                 .contains("\"cpuTotal\":8")
                 .contains("\"ramTotalMb\":16384")
-                .contains("\"diskTotalMb\":200000");
+                .contains("\"diskTotalMb\":200000")
+                .contains("\"advertiseAddress\":\"node-a.example.test\"");
     }
 
     @Test
@@ -89,19 +92,23 @@ class OrchestratorClientTest {
     @Test
     void shouldReadPendingCommandsWithBearerToken() {
         assertThat(client.pendingCommands(nodeId, "agent-token"))
-                .containsExactly(new PendingCommand(nodeId, "nginx:alpine", 1, 64, 128));
+                .containsExactly(new PendingCommand(nodeId, "nginx:alpine", 1, 64, 128, java.util.List.of(
+                        new PortSpec(80, null, PortProtocol.TCP, PortExposure.HTTP, null))));
         assertThat(authorization.get()).isEqualTo("Bearer agent-token");
     }
 
     @Test
     void shouldReportContainerStatusWithBearerToken() {
         client.updateContainerStatus(nodeId, "agent-token",
-                new ContainerStatusUpdateRequest("RUNNING", "docker-123", null));
+                new ContainerStatusUpdateRequest("RUNNING", "docker-123", null, java.util.List.of(
+                        new ContainerEndpoint(80, 32768, PortProtocol.TCP, "0.0.0.0"))));
 
         assertThat(authorization.get()).isEqualTo("Bearer agent-token");
         assertThat(statusBody.get())
                 .contains("\"status\":\"RUNNING\"")
-                .contains("\"dockerContainerId\":\"docker-123\"");
+                .contains("\"dockerContainerId\":\"docker-123\"")
+                .contains("\"endpoints\":[{\"containerPort\":80,\"hostPort\":32768,"
+                        + "\"protocol\":\"TCP\",\"address\":\"0.0.0.0\"}]");
     }
 
     private static String readBody(HttpExchange exchange) throws IOException {

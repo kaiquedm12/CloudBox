@@ -27,6 +27,7 @@ public class NodeService {
     public NodeRegisterResponse registerNode(NodeRegisterRequest request) {
         Node node = new Node();
         node.setName(request.name());
+        node.setAdvertiseAddress(request.advertiseAddress());
         node.setToken(UUID.randomUUID().toString());
         node.setStatus(NodeStatus.OFFLINE);
         node.setCpuTotal(request.cpuTotal());
@@ -69,6 +70,7 @@ public class NodeService {
         return new NodeResponse(
                 node.getId(),
                 node.getName(),
+                node.getAdvertiseAddress(),
                 node.getStatus(),
                 node.getCpuTotal(),
                 node.getCpuFree(),

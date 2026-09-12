@@ -1,4 +1,7 @@
-import type { CloudContainer, ContainerStatus } from "@/types/container";
+"use client";
+
+import { useState } from "react";
+import type { CloudContainer, ContainerEndpoint, ContainerStatus } from "@/types/container";
 
 const statusLabels: Record<ContainerStatus, string> = {
   PENDING: "Pendente",
@@ -28,15 +31,89 @@ function formatCreatedAt(value: string) {
   return Number.isNaN(date.getTime()) ? "Data indisponível" : dateFormatter.format(date);
 }
 
+function validHttpUrl(value: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+function endpointAddress(endpoint: ContainerEndpoint) {
+  const address = endpoint.address.includes(":") && !endpoint.address.startsWith("[")
+    ? `[${endpoint.address}]`
+    : endpoint.address;
+  return `${address}:${endpoint.hostPort}`;
+}
+
+function isLoopbackAddress(address: string) {
+  return address === "127.0.0.1" || address === "::1";
+}
+
+function EndpointRow({
+  endpoint,
+  actionsDisabled,
+}: {
+  endpoint: ContainerEndpoint;
+  actionsDisabled: boolean;
+}) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const url = validHttpUrl(endpoint.url);
+  const accessAddress = endpointAddress(endpoint);
+
+  async function copyEndpoint() {
+    try {
+      await navigator.clipboard.writeText(accessAddress);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
+  }
+
+  return (
+    <li className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="font-mono text-sm font-semibold text-slate-800">
+          Endereço: {accessAddress}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">Porta interna {endpoint.containerPort} · {endpoint.protocol}</p>
+        {isLoopbackAddress(endpoint.address) ? (
+          <p className="mt-1 text-xs text-amber-700">Acesso local ao nó.</p>
+        ) : null}
+      </div>
+      {actionsDisabled ? (
+        <span className="text-xs font-medium text-amber-700">Acesso indisponível</span>
+      ) : url ? (
+        <a className="w-fit rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700" href={url.toString()} rel="noreferrer" target="_blank">
+          Abrir aplicação
+        </a>
+      ) : (
+        <div className="flex items-center gap-3">
+          <button className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100" onClick={() => void copyEndpoint()} type="button">
+            Copiar endpoint
+          </button>
+          <span aria-live="polite" className={`text-xs ${copyState === "error" ? "text-rose-700" : "text-slate-500"}`}>
+            {copyState === "copied" ? "Copiado" : copyState === "error" ? "Não foi possível copiar" : ""}
+          </span>
+        </div>
+      )}
+    </li>
+  );
+}
+
 export function ContainerList({
   containers,
   emptyMessage = "Nenhum container encontrado.",
   nodeNames,
+  nodeStatuses,
   showNode = false,
 }: {
   containers: CloudContainer[];
   emptyMessage?: string;
   nodeNames?: Map<string, string>;
+  nodeStatuses?: Map<string, "ONLINE" | "OFFLINE">;
   showNode?: boolean;
 }) {
   if (containers.length === 0) {
@@ -108,6 +185,35 @@ export function ContainerList({
               {container.errorMessage}
             </p>
           ) : null}
+
+          {(() => {
+            const endpoints = container.endpoints ?? [];
+            const nodeOffline = container.nodeId !== null && nodeStatuses?.get(container.nodeId) === "OFFLINE";
+            const waitingForEndpoint = container.status === "PENDING" || container.status === "SCHEDULED";
+            const actionsDisabled = nodeOffline || container.status !== "RUNNING";
+
+            return (
+              <section aria-label="Endpoints observados" className="mt-5 border-t border-slate-100 pt-5">
+                <h3 className="text-sm font-semibold text-slate-800">Acesso</h3>
+                {nodeOffline ? (
+                  <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+                    Nó offline: endpoints preservados apenas para diagnóstico; ações de acesso estão desabilitadas.
+                  </p>
+                ) : null}
+                {endpoints.length > 0 ? (
+                  <ul className="mt-3 space-y-2">
+                    {endpoints.map((endpoint, index) => (
+                      <EndpointRow actionsDisabled={actionsDisabled} endpoint={endpoint} key={`${endpoint.containerPort}-${endpoint.protocol}-${endpoint.address}-${endpoint.hostPort}-${index}`} />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-500">
+                    {waitingForEndpoint ? "Aguardando a publicação das portas pelo nó." : container.status === "RUNNING" ? "Em execução, sem endpoint observado." : "Nenhum endpoint de acesso disponível."}
+                  </p>
+                )}
+              </section>
+            );
+          })()}
         </article>
       ))}
     </div>

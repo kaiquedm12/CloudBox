@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.cloudbox.agent.client.ContainerStatusUpdateRequest;
 import com.cloudbox.agent.client.OrchestratorClient;
+import com.cloudbox.agent.docker.ContainerLaunchResult;
 
 @Component
 public class ContainerStatusReporter {
@@ -19,6 +20,12 @@ public class ContainerStatusReporter {
     public void running(UUID containerId, String token, String dockerContainerId) {
         orchestratorClient.updateContainerStatus(
                 containerId, token, new ContainerStatusUpdateRequest("RUNNING", dockerContainerId, null));
+    }
+
+    public void running(UUID containerId, String token, ContainerLaunchResult launchResult) {
+        orchestratorClient.updateContainerStatus(
+                containerId, token, new ContainerStatusUpdateRequest(
+                        "RUNNING", launchResult.dockerContainerId(), null, launchResult.endpoints()));
     }
 
     public void error(UUID containerId, String token, RuntimeException failure) {

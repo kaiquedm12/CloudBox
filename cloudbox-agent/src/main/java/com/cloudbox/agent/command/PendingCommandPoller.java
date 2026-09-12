@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import com.cloudbox.agent.client.OrchestratorClient;
 import com.cloudbox.agent.client.PendingCommand;
 import com.cloudbox.agent.docker.ContainerExecutionService;
+import com.cloudbox.agent.docker.ContainerLaunchResult;
 import com.cloudbox.agent.registration.AgentCredentials;
 import com.cloudbox.agent.registration.NodeRegistrationService;
 
@@ -24,7 +25,7 @@ public class PendingCommandPoller {
     private final NodeRegistrationService registrationService;
     private final ContainerExecutionService executionService;
     private final ContainerStatusReporter statusReporter;
-    private final Map<UUID, String> runningAwaitingReport = new ConcurrentHashMap<>();
+    private final Map<UUID, ContainerLaunchResult> runningAwaitingReport = new ConcurrentHashMap<>();
 
     public PendingCommandPoller(
             OrchestratorClient orchestratorClient,
@@ -53,19 +54,19 @@ public class PendingCommandPoller {
     }
 
     private void execute(PendingCommand command, String token) {
-        String alreadyRunning = runningAwaitingReport.get(command.containerId());
+        ContainerLaunchResult alreadyRunning = runningAwaitingReport.get(command.containerId());
         if (alreadyRunning != null) {
             reportRunning(command, token, alreadyRunning);
             return;
         }
 
-        String dockerContainerId;
+        ContainerLaunchResult launchResult;
         try {
             LOGGER.info("Executando container solicitado pelo orquestrador id={} imagem={}",
                     command.containerId(), command.imageName());
-            dockerContainerId = executionService.runContainer(
+            launchResult = executionService.runContainer(
                     command.imageName(), "cloudbox-" + command.containerId(),
-                    command.cpuCores(), command.memoryMb());
+                    command.containerId().toString(), command.cpuCores(), command.memoryMb(), command.ports());
         } catch (RuntimeException exception) {
             LOGGER.error("Falha ao executar container id={}", command.containerId(), exception);
             try {
@@ -77,15 +78,16 @@ public class PendingCommandPoller {
             return;
         }
 
-        runningAwaitingReport.put(command.containerId(), dockerContainerId);
-        reportRunning(command, token, dockerContainerId);
+        runningAwaitingReport.put(command.containerId(), launchResult);
+        reportRunning(command, token, launchResult);
     }
 
-    private void reportRunning(PendingCommand command, String token, String dockerContainerId) {
+    private void reportRunning(PendingCommand command, String token, ContainerLaunchResult launchResult) {
         try {
-            statusReporter.running(command.containerId(), token, dockerContainerId);
-            runningAwaitingReport.remove(command.containerId(), dockerContainerId);
-            LOGGER.info("Container iniciado id={} dockerContainerId={}", command.containerId(), dockerContainerId);
+            statusReporter.running(command.containerId(), token, launchResult);
+            runningAwaitingReport.remove(command.containerId(), launchResult);
+            LOGGER.info("Container iniciado id={} dockerContainerId={}",
+                    command.containerId(), launchResult.dockerContainerId());
         } catch (RuntimeException exception) {
             LOGGER.warn("Container id={} esta em execucao, mas o status RUNNING ainda nao foi reportado; "
                     + "o agente tentara novamente", command.containerId(), exception);

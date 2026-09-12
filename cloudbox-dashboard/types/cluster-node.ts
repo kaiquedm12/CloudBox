@@ -12,4 +12,6 @@ export type ClusterNode = {
   diskFreeMb: number;
   temperatureCelsius: number | null;
   lastHeartbeat: string | null;
+  /** Endereço anunciado pelo agente para acesso externo; pode faltar em nós legados. */
+  advertiseAddress?: string | null;
 };

@@ -146,6 +146,9 @@ export function NodeCard({ node }: NodeCardProps) {
           <p className="mt-3 text-xs text-slate-400">
             {formatHeartbeat(node.lastHeartbeat)}
           </p>
+          <p className="mt-1 truncate font-mono text-xs text-slate-400">
+            {node.advertiseAddress ?? "Endereço de acesso não anunciado"}
+          </p>
         </div>
 
         <div className="space-y-5 p-5 sm:p-6">

@@ -13,6 +13,8 @@ public class AgentClientProperties {
 
     private String masterUrl = "http://localhost:8080";
     private String name = defaultHostName();
+    private String advertiseAddress;
+    private String portBindAddress = "0.0.0.0";
     private Path tokenFile = Path.of(System.getProperty("user.home"), ".cloudbox", "agent-credentials.properties");
 
     public String getMasterUrl() {
@@ -29,6 +31,23 @@ public class AgentClientProperties {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getAdvertiseAddress() {
+        return advertiseAddress;
+    }
+
+    public void setAdvertiseAddress(String advertiseAddress) {
+        this.advertiseAddress = NetworkAddressValidator.normalizeAdvertiseAddress(advertiseAddress);
+    }
+
+    public String getPortBindAddress() {
+        return portBindAddress;
+    }
+
+    public void setPortBindAddress(String portBindAddress) {
+        this.portBindAddress = NetworkAddressValidator.requireIpLiteral(
+                portBindAddress, "AGENT_PORT_BIND_ADDRESS");
     }
 
     public Path getTokenFile() {

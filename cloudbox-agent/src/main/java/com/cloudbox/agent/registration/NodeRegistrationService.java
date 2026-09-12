@@ -57,7 +57,8 @@ public class NodeRegistrationService {
                 properties.getName(),
                 BigDecimal.valueOf(metricsCollector.logicalProcessorCount()),
                 bytesToMb(metrics.ramTotalBytes()),
-                bytesToMb(metrics.diskTotalBytes())));
+                bytesToMb(metrics.diskTotalBytes()),
+                properties.getAdvertiseAddress()));
         if (response == null || response.id() == null || response.token() == null || response.token().isBlank()) {
             throw new IllegalStateException("O orquestrador retornou um registro incompleto");
         }

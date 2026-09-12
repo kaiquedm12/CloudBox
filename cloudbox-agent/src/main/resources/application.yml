@@ -2,6 +2,8 @@ cloudbox:
   agent:
     master-url: ${CLOUDBOX_MASTER_URL:http://localhost:8080}
     name: ${AGENT_NAME:${HOSTNAME:cloudbox-agent}}
+    advertise-address: ${AGENT_ADVERTISE_ADDRESS:}
+    port-bind-address: ${AGENT_PORT_BIND_ADDRESS:0.0.0.0}
     token-file: ${AGENT_TOKEN_FILE:${user.home}/.cloudbox/agent-credentials.properties}
     heartbeat-interval: ${AGENT_HEARTBEAT_INTERVAL:10000}
     heartbeat-initial-delay: ${AGENT_HEARTBEAT_INITIAL_DELAY:2000}
