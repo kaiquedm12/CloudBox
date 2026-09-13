@@ -8,22 +8,28 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import com.cloudbox.master.node.dto.HeartbeatRequest;
 import com.cloudbox.master.node.dto.NodeRegisterRequest;
 import com.cloudbox.master.node.dto.NodeRegisterResponse;
 import com.cloudbox.master.node.dto.NodeResponse;
+import com.cloudbox.master.security.AgentTokenValidator;
 
 @RestController
 @RequestMapping("/api/nodes")
 public class NodeController {
 
     private final NodeService nodeService;
+    private final AgentTokenValidator agentTokenValidator;
 
-    public NodeController(NodeService nodeService) {
+    public NodeController(NodeService nodeService, AgentTokenValidator agentTokenValidator) {
         this.nodeService = nodeService;
+        this.agentTokenValidator = agentTokenValidator;
     }
 
     @PostMapping("/register")
@@ -33,7 +39,12 @@ public class NodeController {
     }
 
     @PostMapping("/{id}/heartbeat")
-    public ResponseEntity<Void> heartbeat(@PathVariable UUID id, @Valid @RequestBody HeartbeatRequest request) {
+    @Operation(summary = "Atualiza métricas do nó autenticado", security = @SecurityRequirement(name = "AgentToken"))
+    public ResponseEntity<Void> heartbeat(
+            @PathVariable UUID id,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @Valid @RequestBody HeartbeatRequest request) {
+        agentTokenValidator.authorizeNode(id, authorizationHeader);
         nodeService.receiveHeartbeat(id, request);
         return ResponseEntity.noContent().build();
     }

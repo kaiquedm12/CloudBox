@@ -1,5 +1,6 @@
 package com.cloudbox.master.container.dto;
 
+import java.util.List;
 import java.util.UUID;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -15,8 +16,18 @@ public record PendingCommandResponse(
         Integer cpuCores,
         @Schema(description = "Memória reservada em MB", example = "512")
         Integer memoryMb,
-        @Schema(description = "Disco reservado em MB", example = "128")
+        @Schema(description = "Disco solicitado em MB; não representa quota aplicada", example = "128")
         Integer diskMb,
+        List<PortSpec> ports,
         @Schema(description = "Identificador Docker usado por STOP e REMOVE", nullable = true)
         String dockerContainerId) {
+
+    public PendingCommandResponse {
+        ports = ports == null ? List.of() : List.copyOf(ports);
+    }
+
+    public PendingCommandResponse(UUID containerId, String imageName, Integer cpuCores,
+                                  Integer memoryMb, Integer diskMb) {
+        this(containerId, "START", imageName, cpuCores, memoryMb, diskMb, List.of(), null);
+    }
 }

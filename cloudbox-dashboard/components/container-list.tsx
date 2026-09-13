@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { BoxIcon } from "@/components/ui-icons";
 import { useLanguage, type MessageKey } from "@/lib/i18n";
-import type { CloudContainer, ContainerStatus } from "@/types/container";
+import type { CloudContainer, ContainerEndpoint, ContainerStatus } from "@/types/container";
 
 const statusLabelKeys: Record<ContainerStatus, MessageKey> = {
   PENDING: "pending",
@@ -72,10 +73,126 @@ function ContainerActions({
   );
 }
 
+function validHttpUrl(value: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+function endpointAddress(endpoint: ContainerEndpoint) {
+  const address = endpoint.address.includes(":") && !endpoint.address.startsWith("[")
+    ? `[${endpoint.address}]`
+    : endpoint.address;
+  return `${address}:${endpoint.hostPort}`;
+}
+
+function isLoopbackAddress(address: string) {
+  return address === "127.0.0.1" || address === "::1";
+}
+
+function EndpointRow({
+  endpoint,
+  actionsDisabled,
+}: {
+  endpoint: ContainerEndpoint;
+  actionsDisabled: boolean;
+}) {
+  const { t } = useLanguage();
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const url = validHttpUrl(endpoint.url);
+  const accessAddress = endpointAddress(endpoint);
+
+  async function copyEndpoint() {
+    try {
+      await navigator.clipboard.writeText(accessAddress);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
+  }
+
+  return (
+    <li className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950/40 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="font-mono text-sm font-semibold text-slate-800 dark:text-slate-200">
+          {t("endpointAddress")}: {accessAddress}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">{t("internalPort")} {endpoint.containerPort} · {endpoint.protocol}</p>
+        {isLoopbackAddress(endpoint.address) ? (
+          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{t("localNodeAccess")}</p>
+        ) : null}
+      </div>
+      {actionsDisabled ? (
+        <span className="text-xs font-medium text-amber-700 dark:text-amber-300">{t("accessUnavailable")}</span>
+      ) : url ? (
+        <a className="w-fit rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700" href={url.toString()} rel="noreferrer" target="_blank">
+          {t("openApplication")}
+        </a>
+      ) : (
+        <div className="flex items-center gap-3">
+          <button className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" onClick={() => void copyEndpoint()} type="button">
+            {t("copyEndpoint")}
+          </button>
+          <span aria-live="polite" className={`text-xs ${copyState === "error" ? "text-rose-700" : "text-slate-500"}`}>
+            {copyState === "copied" ? t("copied") : copyState === "error" ? t("copyFailed") : ""}
+          </span>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function ContainerEndpoints({
+  compact = false,
+  container,
+  nodeStatuses,
+}: {
+  compact?: boolean;
+  container: CloudContainer;
+  nodeStatuses?: Map<string, "ONLINE" | "OFFLINE">;
+}) {
+  const { t } = useLanguage();
+  const endpoints = container.endpoints ?? [];
+  const nodeOffline = container.nodeId !== null && nodeStatuses?.get(container.nodeId) === "OFFLINE";
+  const waitingForEndpoint = container.status === "PENDING" || container.status === "SCHEDULED";
+  const actionsDisabled = nodeOffline || container.status !== "RUNNING";
+
+  return (
+    <section aria-label={t("observedEndpoints")} className={compact ? "min-w-64" : "mt-4 border-t border-slate-100 pt-4 dark:border-slate-800"}>
+      <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{t("access")}</h3>
+      {nodeOffline ? (
+        <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+          {t("offlineEndpoints")}
+        </p>
+      ) : null}
+      {endpoints.length > 0 ? (
+        <ul className="mt-3 space-y-2">
+          {endpoints.map((endpoint, index) => (
+            <EndpointRow actionsDisabled={actionsDisabled} endpoint={endpoint} key={`${endpoint.containerPort}-${endpoint.protocol}-${endpoint.address}-${endpoint.hostPort}-${index}`} />
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          {waitingForEndpoint
+            ? t("waitingForEndpoints")
+            : container.status === "RUNNING"
+              ? t("runningWithoutEndpoint")
+              : t("noEndpoint")}
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function ContainerList({
   containers,
   emptyMessage,
   nodeNames,
+  nodeStatuses,
   showNode = false,
   onStop,
   onRemove,
@@ -86,6 +203,7 @@ export function ContainerList({
   containers: CloudContainer[];
   emptyMessage?: string;
   nodeNames?: Map<string, string>;
+  nodeStatuses?: Map<string, "ONLINE" | "OFFLINE">;
   showNode?: boolean;
   onStop?: (containerId: string) => void;
   onRemove?: (containerId: string) => void;
@@ -131,6 +249,7 @@ export function ContainerList({
               <div><dt className="text-slate-400">{t("resources")}</dt><dd className="mt-1 font-semibold text-slate-700 dark:text-slate-300">{resourceLabel(container)}</dd></div>
               <div className={showNode ? "col-span-2" : ""}><dt className="text-slate-400">{t("createdAt")}</dt><dd className="mt-1 font-semibold text-slate-700 dark:text-slate-300">{formatCreatedAt(container.createdAt, dateFormatter, t("dateUnavailable"))}</dd></div>
             </dl>
+            <ContainerEndpoints container={container} nodeStatuses={nodeStatuses} />
             {(onStop || onRemove) ? <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800"><ContainerActions busyAction={busyAction} busyContainerId={busyContainerId} container={container} onRemove={onRemove} onStop={onStop} /></div> : null}
           </article>
         ))}
@@ -145,6 +264,7 @@ export function ContainerList({
               <th className="px-5 py-3.5 font-bold">{t("status")}</th>
               <th className="px-5 py-3.5 font-bold">{t("resources")}</th>
               <th className="px-5 py-3.5 font-bold">{t("createdAt")}</th>
+              <th className="px-5 py-3.5 font-bold">{t("access")}</th>
               {(onStop || onRemove) ? <th className="px-5 py-3.5 text-right font-bold">{t("actions")}</th> : null}
             </tr></thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -155,6 +275,7 @@ export function ContainerList({
                   <td className="px-5 py-4"><StatusBadge status={container.status} /></td>
                   <td className="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-300">{resourceLabel(container)}</td>
                   <td className="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-300">{formatCreatedAt(container.createdAt, dateFormatter, t("dateUnavailable"))}</td>
+                  <td className="px-5 py-4"><ContainerEndpoints compact container={container} nodeStatuses={nodeStatuses} /></td>
                   {(onStop || onRemove) ? <td className="px-5 py-4"><ContainerActions busyAction={busyAction} busyContainerId={busyContainerId} container={container} onRemove={onRemove} onStop={onStop} /></td> : null}
                 </tr>
               ))}

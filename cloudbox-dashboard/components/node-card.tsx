@@ -122,6 +122,9 @@ export function NodeCard({
             </div>
             <ArrowRightIcon className="mt-1 size-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-500" />
           </div>
+          <p className="mt-1 truncate font-mono text-xs text-slate-400">
+            {t("advertisedAddress")}: {node.advertiseAddress ?? t("advertisedAddressMissing")}
+          </p>
         </div>
 
         <div className={`grid gap-4 p-5 ${variant === "list" ? "sm:grid-cols-3" : ""} ${isOnline ? "" : "opacity-60"}`}>

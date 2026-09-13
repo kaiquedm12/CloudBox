@@ -166,6 +166,11 @@ cloudbox/
 
 ## Como rodar localmente
 
+Para configurar o endereço do nó, publicar uma porta e acessar o Nginx pelo
+dashboard, consulte [Publicação de portas](docs/acesso-servicos.md).
+O [plano de evolução](docs/plano-evolucao-servicos.md) registra a divisão do
+trabalho e as funcionalidades que ainda não foram implementadas.
+
 > Seção a ser detalhada conforme a implementação avança.
 
 ```bash

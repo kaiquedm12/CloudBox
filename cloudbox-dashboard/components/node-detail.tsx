@@ -116,6 +116,9 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
               {node.name}
             </h1>
             <p className="mt-2 break-all font-mono text-xs text-slate-400">{node.id}</p>
+            <p className="mt-2 break-all text-sm text-slate-600">
+              Endereço anunciado: <span className="font-mono">{node.advertiseAddress ?? "não informado"}</span>
+            </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <span
@@ -196,6 +199,7 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
           <ContainerList
             containers={containers}
             emptyMessage={t("noNodeContainers")}
+            nodeStatuses={new Map([[node.id, node.status]])}
           />
         )}
       </section>

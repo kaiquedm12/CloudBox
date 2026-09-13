@@ -11,7 +11,8 @@ export type ClusterStatusMessage =
       occurredAt: string;
     }
   | {
-      eventType: "CONTAINER_STATUS_CHANGED";
+      /** CHANGE é o nome compatível do contrato de portas; CHANGED permanece para masters legados. */
+      eventType: "CONTAINER_STATUS_CHANGE" | "CONTAINER_STATUS_CHANGED";
       resourceType: "CONTAINER";
       resourceId: string;
       previousStatus: ContainerStatus | null;

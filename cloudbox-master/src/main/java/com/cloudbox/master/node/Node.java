@@ -24,6 +24,9 @@ public class Node {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "advertise_address", length = 253)
+    private String advertiseAddress;
+
     @Column(name = "token", nullable = false, unique = true)
     private String token;
 
@@ -72,6 +75,14 @@ public class Node {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getAdvertiseAddress() {
+        return advertiseAddress;
+    }
+
+    public void setAdvertiseAddress(String advertiseAddress) {
+        this.advertiseAddress = advertiseAddress;
     }
 
     public String getToken() {

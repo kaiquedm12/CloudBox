@@ -1,14 +1,20 @@
 package com.cloudbox.master.container;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -46,6 +52,16 @@ public class ContainerInstance {
 
     @Column(name = "error_message", columnDefinition = "text")
     private String errorMessage;
+
+    @ElementCollection
+    @CollectionTable(name = "container_ports", joinColumns = @JoinColumn(name = "container_id"))
+    @OrderColumn(name = "port_order")
+    private List<ContainerPort> ports = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "container_endpoints", joinColumns = @JoinColumn(name = "container_id"))
+    @OrderColumn(name = "endpoint_order")
+    private List<ContainerEndpoint> endpoints = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -135,6 +151,28 @@ public class ContainerInstance {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    public List<ContainerPort> getPorts() {
+        return ports;
+    }
+
+    public void setPorts(List<ContainerPort> ports) {
+        this.ports.clear();
+        if (ports != null) {
+            this.ports.addAll(ports);
+        }
+    }
+
+    public List<ContainerEndpoint> getEndpoints() {
+        return endpoints;
+    }
+
+    public void setEndpoints(List<ContainerEndpoint> endpoints) {
+        this.endpoints.clear();
+        if (endpoints != null) {
+            this.endpoints.addAll(endpoints);
+        }
     }
 
     public Instant getCreatedAt() {

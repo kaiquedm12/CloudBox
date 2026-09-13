@@ -20,6 +20,7 @@ import jakarta.validation.Valid;
 import com.cloudbox.master.container.dto.ContainerRequest;
 import com.cloudbox.master.container.dto.ContainerResponse;
 import com.cloudbox.master.container.dto.ContainerStatusUpdateRequest;
+import com.cloudbox.master.node.Node;
 import com.cloudbox.master.security.AgentTokenValidator;
 
 @RestController
@@ -71,7 +72,7 @@ public class ContainerController {
             @PathVariable UUID id,
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @Valid @RequestBody ContainerStatusUpdateRequest request) {
-        agentTokenValidator.authorizeContainer(id, authorizationHeader);
-        return ResponseEntity.ok(containerService.updateStatus(id, request));
+        Node authorizedNode = agentTokenValidator.authorizeContainerNode(id, authorizationHeader);
+        return ResponseEntity.ok(containerService.updateStatus(id, request, authorizedNode));
     }
 }

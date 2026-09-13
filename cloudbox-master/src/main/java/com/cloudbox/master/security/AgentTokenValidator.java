@@ -35,6 +35,10 @@ public class AgentTokenValidator {
     }
 
     public void authorizeContainer(UUID containerId, String authorizationHeader) {
+        authorizeContainerNode(containerId, authorizationHeader);
+    }
+
+    public Node authorizeContainerNode(UUID containerId, String authorizationHeader) {
         ContainerInstance container = containerRepository.findById(containerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Container não encontrado: " + containerId));
         if (container.getNodeId() == null) {
@@ -43,6 +47,7 @@ public class AgentTokenValidator {
         Node node = nodeRepository.findById(container.getNodeId())
                 .orElseThrow(() -> new UnauthorizedException("Nó do container não encontrado: " + container.getNodeId()));
         assertTokenMatches(node, authorizationHeader);
+        return node;
     }
 
     private void assertTokenMatches(Node node, String authorizationHeader) {

@@ -24,6 +24,10 @@ export function ContainersOverview() {
     () => new Map(nodes.map((node) => [node.id, node.name])),
     [nodes],
   );
+  const nodeStatuses = useMemo(
+    () => new Map(nodes.map((node) => [node.id, node.status] as const)),
+    [nodes],
+  );
 
   return (
     <div className="space-y-7">
@@ -68,6 +72,7 @@ export function ContainersOverview() {
         <ContainerList
           containers={containers}
           nodeNames={nodeNames}
+          nodeStatuses={nodeStatuses}
           showNode
           actionError={stopContainer.error?.message ?? removeContainer.error?.message}
           busyAction={stopContainer.isPending ? "stop" : removeContainer.isPending ? "remove" : undefined}
