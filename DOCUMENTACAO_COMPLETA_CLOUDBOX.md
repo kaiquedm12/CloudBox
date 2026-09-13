@@ -592,15 +592,17 @@ Eventos existentes:
 
 ### 13.2. Usuário inicial
 
-A migration V7 cria, se ainda não existir:
+A migration V7 criou originalmente um administrador de demonstração com
+`admin@admin.com` e senha `cloudbox`. A migration V8 remove esse usuário quando
+ele ainda possui a senha insegura original.
 
-```text
-e-mail: admin@admin.com
-senha:  cloudbox
-papel:  ADMIN
-```
+Na inicialização, o master exige `ADMIN_EMAIL` e `ADMIN_PASSWORD` e cria um
+administrador com papel `ADMIN` somente quando o e-mail configurado ainda não
+existe. A senha deve possuir pelo menos 12 caracteres. Por segurança, não há
+credenciais administrativas padrão.
 
-Essas credenciais são adequadas somente para desenvolvimento/demonstração e devem ser alteradas para uso real.
+Alterar `ADMIN_PASSWORD` após o usuário ser criado não redefine a senha já
+armazenada.
 
 ### 13.3. Tokens de agentes
 
@@ -612,7 +614,7 @@ Essas credenciais são adequadas somente para desenvolvimento/demonstração e d
 
 ### 13.4. Pontos de atenção
 
-- O segredo JWT possui um valor padrão de desenvolvimento no repositório.
+- `JWT_SECRET`, `ADMIN_EMAIL` e `ADMIN_PASSWORD` são obrigatórios no master.
 - O heartbeat não valida o token enviado.
 - O WebSocket permite qualquer origem (`AllowedOriginPatterns("*")`), embora exija JWT no cookie para autenticar o handshake.
 - CSRF está desabilitado. O cookie `SameSite=Lax` reduz parte do risco, mas não substitui uma análise de CSRF para implantação pública.
@@ -671,7 +673,9 @@ Não existe foreign key explícita entre `container_instances.node_id` e `nodes.
 4. V4 adiciona e indexa `node_id`.
 5. V5 adiciona ID Docker e mensagem de erro.
 6. V6 cria `users`.
-7. V7 cria o administrador inicial.
+7. V7 cria o administrador legado de demonstração.
+8. V8 remove o administrador legado quando ele ainda usa a senha insegura.
+9. V9 adiciona endereços de nós, portas de serviços e endpoints observados.
 
 Hibernate usa `ddl-auto: validate`; alterações estruturais devem ser feitas por novas migrations Flyway.
 
@@ -687,8 +691,10 @@ Hibernate usa `ddl-auto: validate`; alterações estruturais devem ser feitas po
 | `PGDATABASE` | `cloudbox` | Banco |
 | `PGUSER` | `cloudbox` | Usuário |
 | `PGPASSWORD` | `cloudbox` | Senha |
-| `JWT_SECRET` | Segredo Base64 de desenvolvimento | Assinatura JWT |
+| `JWT_SECRET` | Obrigatório | Segredo Base64 para assinatura JWT |
 | `JWT_EXPIRATION_SECONDS` | `3600` | Validade JWT |
+| `ADMIN_EMAIL` | Obrigatório | E-mail do administrador inicial |
+| `ADMIN_PASSWORD` | Obrigatório, mínimo de 12 caracteres | Senha do administrador inicial |
 | `cloudbox.heartbeat.timeout-seconds` | `30` | Timeout de nó |
 | `cloudbox.heartbeat.check-interval-seconds` | `10` | Frequência do monitor |
 | `cloudbox.scheduler.max-temperature-celsius` | `75` | Limite térmico |
