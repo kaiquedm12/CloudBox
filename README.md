@@ -204,7 +204,15 @@ PGUSER=${{Postgres.PGUSER}}
 PGPASSWORD=${{Postgres.PGPASSWORD}}
 JWT_SECRET=<segredo-base64-com-pelo-menos-32-bytes>
 JWT_EXPIRATION_SECONDS=3600
+ADMIN_EMAIL=admin@seu-dominio.com
+ADMIN_PASSWORD=<senha-forte-com-pelo-menos-12-caracteres>
 ```
+
+`ADMIN_EMAIL`, `ADMIN_PASSWORD` e `JWT_SECRET` sao obrigatorias. O usuario
+legado `admin@admin.com` com senha `cloudbox` e removido pela migration V8 e
+nao deve ser usado. O administrador configurado e criado somente se o e-mail
+ainda nao existir no banco; alterar `ADMIN_PASSWORD` depois disso nao redefine
+a senha de um usuario existente.
 
 Depois do deploy, gere um dominio publico em **Settings > Networking** e
 configure cada agente com a URL criada:
