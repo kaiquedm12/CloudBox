@@ -1,14 +1,16 @@
 server:
   port: ${PORT:8080}
+  shutdown: graceful
 
 spring:
   datasource:
-    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:cloudbox}
-    username: ${PGUSER:cloudbox}
-    password: ${PGPASSWORD:cloudbox}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:cloudbox}}
+    username: ${SPRING_DATASOURCE_USERNAME:${PGUSER:cloudbox}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${PGPASSWORD:cloudbox}}
   jpa:
     hibernate:
       ddl-auto: validate
+    open-in-view: false
     show-sql: false
   flyway:
     enabled: true
@@ -18,18 +20,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,info
   endpoint:
     health:
-      show-details: always
+      show-details: never
 
 cloudbox:
+  bootstrap-admin:
+    email: ${ADMIN_EMAIL}
+    password: ${ADMIN_PASSWORD}
   security:
     jwt:
-      secret: ${JWT_SECRET:Y2xvdWRib3gtZGV2LWp3dC1zZWNyZXQtbXVzdC1iZS1hdC1sZWFzdC0zMi1ieXRlcw==}
+      secret: ${JWT_SECRET}
       expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
   heartbeat:
-    timeout-seconds: 30
-    check-interval-seconds: 10
+    timeout-seconds: ${HEARTBEAT_TIMEOUT_SECONDS:30}
+    check-interval-seconds: ${HEARTBEAT_CHECK_INTERVAL_SECONDS:10}
   scheduler:
-    max-temperature-celsius: 75
+    max-temperature-celsius: ${SCHEDULER_MAX_TEMPERATURE_CELSIUS:75}
