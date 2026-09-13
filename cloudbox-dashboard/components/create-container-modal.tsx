@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent, type MouseEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { useCreateContainer } from "@/hooks/use-containers";
 import { ApiError } from "@/lib/api";
 import { createContainerSchema } from "@/lib/container-schema";
+import { useLanguage, type MessageKey } from "@/lib/i18n";
 import type { ClusterNode } from "@/types/cluster-node";
 import type {
   CloudContainer,
@@ -71,23 +72,54 @@ export function CreateContainerModal({
   nodes: ClusterNode[];
   onClose: () => void;
 }) {
+  const { language, t } = useLanguage();
   const titleId = useId();
+  const dialogRef = useRef<HTMLElement>(null);
   const mutation = useCreateContainer();
+  const isPendingRef = useRef(mutation.isPending);
+  const onCloseRef = useRef(onClose);
+  isPendingRef.current = mutation.isPending;
+  onCloseRef.current = onClose;
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [portErrors, setPortErrors] = useState<Record<number, string>>({});
   const [ports, setPorts] = useState<PortFormValue[]>([]);
   const [createdContainer, setCreatedContainer] = useState<CloudContainer | null>(null);
 
   useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape" && !mutation.isPending) {
-        onClose();
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isPendingRef.current) {
+        onCloseRef.current();
+      }
+
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     }
 
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [mutation.isPending, onClose]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -106,13 +138,20 @@ export function CreateContainerModal({
     if (!parsed.success) {
       const errors: FieldErrors = {};
       const nextPortErrors: Record<number, string> = {};
+      const translatedErrors: Record<keyof CreateContainerRequest, MessageKey> = {
+        imageName: "invalidImage",
+        cpuCores: "invalidCpu",
+        memoryMb: "invalidRam",
+        diskMb: "invalidDisk",
+        ports: "invalidPorts",
+      };
       for (const issue of parsed.error.issues) {
         if (issue.path[0] === "ports" && typeof issue.path[1] === "number") {
           nextPortErrors[issue.path[1]] ??= issue.message;
           continue;
         }
         const field = issue.path[0] as keyof CreateContainerRequest;
-        errors[field] ??= issue.message;
+        errors[field] ??= language === "en" ? t(translatedErrors[field]) : issue.message;
       }
       setFieldErrors(errors);
       setPortErrors(nextPortErrors);
@@ -153,10 +192,10 @@ export function CreateContainerModal({
   const requestError = mutation.error;
   const errorMessage =
     requestError instanceof ApiError && requestError.status === 409
-      ? "Não há nenhum nó online com CPU e RAM suficientes para esta solicitação. Reduza os recursos ou tente novamente mais tarde."
+      ? t("capacityError")
       : requestError instanceof Error
         ? requestError.message
-        : "Não foi possível solicitar o container.";
+        : t("requestFailed");
 
   return (
     <div
@@ -166,21 +205,22 @@ export function CreateContainerModal({
       <section
         aria-labelledby={titleId}
         aria-modal="true"
-        className="my-6 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8"
+        className="my-6 w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-8"
+        ref={dialogRef}
         role="dialog"
       >
         <div className="flex items-start justify-between gap-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
-              Agendador CloudBox
+              {t("scheduler")}
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950" id={titleId}>
-              Novo container
+              {t("newContainer")}
             </h2>
           </div>
           <button
-            aria-label="Fechar"
-            className="grid size-9 shrink-0 place-items-center rounded-lg text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            aria-label={t("close")}
+            className="grid size-9 shrink-0 place-items-center rounded-lg text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
             disabled={mutation.isPending}
             onClick={onClose}
             type="button"
@@ -192,10 +232,10 @@ export function CreateContainerModal({
         {createdContainer ? (
           <div className="mt-7">
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5" role="status">
-              <p className="font-semibold text-emerald-900">Container criado com sucesso</p>
+              <p className="font-semibold text-emerald-900">{t("createSuccess")}</p>
               <p className="mt-2 text-sm leading-6 text-emerald-700">
-                A imagem <strong>{createdContainer.imageName}</strong> foi alocada no nó{" "}
-                <strong>{chosenNode?.name ?? createdContainer.nodeId ?? "selecionado"}</strong>.
+                {t("imageAllocated")} <strong>{createdContainer.imageName}</strong> {t("allocatedOnNode")}{" "}
+                <strong>{chosenNode?.name ?? createdContainer.nodeId ?? t("selected")}</strong>.
               </p>
               <p className="mt-3 break-all font-mono text-xs text-emerald-600">
                 {createdContainer.id}
@@ -207,7 +247,7 @@ export function CreateContainerModal({
                 onClick={onClose}
                 type="button"
               >
-                Concluir
+                {t("finish")}
               </button>
             </div>
           </div>
@@ -219,7 +259,7 @@ export function CreateContainerModal({
               disabled={mutation.isPending}
               error={fieldErrors.imageName}
               id="imageName"
-              label="Imagem Docker"
+              label={t("dockerImage")}
               name="imageName"
               placeholder="nginx:1.27"
               type="text"
@@ -232,7 +272,7 @@ export function CreateContainerModal({
                 error={fieldErrors.cpuCores}
                 id="cpuCores"
                 inputMode="numeric"
-                label="CPUs solicitadas"
+                label={t("requestedCpus")}
                 min="1"
                 name="cpuCores"
                 step="1"
@@ -244,7 +284,7 @@ export function CreateContainerModal({
                 error={fieldErrors.memoryMb}
                 id="memoryMb"
                 inputMode="numeric"
-                label="RAM solicitada (MB)"
+                label={t("requestedRam")}
                 min="1"
                 name="memoryMb"
                 step="1"
@@ -258,7 +298,7 @@ export function CreateContainerModal({
               error={fieldErrors.diskMb}
               id="diskMb"
               inputMode="numeric"
-              label="Disco solicitado (MB)"
+              label={t("requestedDisk")}
               min="1"
               name="diskMb"
               step="1"
@@ -269,10 +309,10 @@ export function CreateContainerModal({
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div>
                   <h3 className="font-semibold text-slate-900" id="ports-title">
-                    Portas e acesso
+                    {t("portsAndAccess")}
                   </h3>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
-                    A porta do host em branco é atribuída pelo Docker. Portas internas não são publicadas.
+                    {t("portsHelp")}
                   </p>
                 </div>
                 <button
@@ -281,13 +321,13 @@ export function CreateContainerModal({
                   onClick={() => setPorts((current) => [...current, emptyPort()])}
                   type="button"
                 >
-                  Adicionar porta
+                  {t("addPort")}
                 </button>
               </div>
 
               {ports.length === 0 ? (
                 <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-500">
-                  Nenhuma porta publicada. O serviço ficará acessível apenas pela rede interna.
+                  {t("noPublishedPorts")}
                 </p>
               ) : (
                 <div className="mt-5 space-y-4">
@@ -296,13 +336,13 @@ export function CreateContainerModal({
                     return (
                       <fieldset className="rounded-xl border border-slate-200 bg-slate-50 p-3" key={index}>
                         <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Porta {index + 1}
+                          {t("port")} {index + 1}
                         </legend>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <InputField
                             disabled={mutation.isPending}
                             id={`containerPort-${index}`}
-                            label="Porta interna"
+                            label={t("internalPort")}
                             min="1"
                             onChange={(event) => updatePort(index, { containerPort: event.target.value })}
                             type="number"
@@ -311,16 +351,16 @@ export function CreateContainerModal({
                           <InputField
                             disabled={mutation.isPending || isInternal}
                             id={`hostPort-${index}`}
-                            label="Porta do host (opcional)"
+                            label={t("optionalHostPort")}
                             min="1"
                             onChange={(event) => updatePort(index, { hostPort: event.target.value })}
-                            placeholder="Automática"
+                            placeholder={t("automatic")}
                             type="number"
                             value={port.hostPort}
                           />
                           <div>
                             <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor={`protocol-${index}`}>
-                              Protocolo
+                              {t("protocol")}
                             </label>
                             <select
                               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
@@ -335,7 +375,7 @@ export function CreateContainerModal({
                           </div>
                           <div>
                             <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor={`exposure-${index}`}>
-                              Exposição
+                              {t("exposure")}
                             </label>
                             <select
                               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
@@ -352,7 +392,7 @@ export function CreateContainerModal({
                               }}
                               value={port.exposure}
                             >
-                              <option value="INTERNAL">Interna</option>
+                              <option value="INTERNAL">{t("internal")}</option>
                               <option value="HTTP">HTTP</option>
                               <option value="TCP">TCP</option>
                               <option value="UDP">UDP</option>
@@ -362,7 +402,7 @@ export function CreateContainerModal({
                             <InputField
                               disabled={mutation.isPending || isInternal}
                               id={`bindAddress-${index}`}
-                              label="IP de publicação (opcional)"
+                              label={t("optionalBindAddress")}
                               onChange={(event) => updatePort(index, { bindAddress: event.target.value })}
                               placeholder="0.0.0.0 ou ::"
                               type="text"
@@ -379,7 +419,7 @@ export function CreateContainerModal({
                           onClick={() => setPorts((current) => current.filter((_, currentIndex) => currentIndex !== index))}
                           type="button"
                         >
-                          Remover porta
+                          {t("removePort")}
                         </button>
                       </fieldset>
                     );
@@ -404,14 +444,14 @@ export function CreateContainerModal({
                 onClick={onClose}
                 type="button"
               >
-                Cancelar
+                {t("cancel")}
               </button>
               <button
                 className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={mutation.isPending}
                 type="submit"
               >
-                {mutation.isPending ? "Solicitando..." : "Solicitar container"}
+                {mutation.isPending ? t("requesting") : t("requestContainer")}
               </button>
             </div>
           </form>

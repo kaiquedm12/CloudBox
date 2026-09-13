@@ -41,7 +41,8 @@ class OrchestratorClientTest {
         server.createContext("/api/nodes/" + nodeId + "/pending-commands", exchange -> {
             authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
             respond(exchange, 200, "[{\"containerId\":\"" + nodeId
-                    + "\",\"imageName\":\"nginx:alpine\",\"cpuCores\":1,\"memoryMb\":64,\"diskMb\":128,"
+                    + "\",\"action\":\"START\",\"imageName\":\"nginx:alpine\",\"cpuCores\":1,"
+                    + "\"memoryMb\":64,\"diskMb\":128,\"dockerContainerId\":null,"
                     + "\"ports\":[{\"containerPort\":80,\"hostPort\":null,\"protocol\":\"TCP\","
                     + "\"exposure\":\"HTTP\",\"bindAddress\":null}]}]");
         });
@@ -92,8 +93,9 @@ class OrchestratorClientTest {
     @Test
     void shouldReadPendingCommandsWithBearerToken() {
         assertThat(client.pendingCommands(nodeId, "agent-token"))
-                .containsExactly(new PendingCommand(nodeId, "nginx:alpine", 1, 64, 128, java.util.List.of(
-                        new PortSpec(80, null, PortProtocol.TCP, PortExposure.HTTP, null))));
+                .containsExactly(new PendingCommand(nodeId, "START", "nginx:alpine", 1, 64, 128,
+                        java.util.List.of(new PortSpec(
+                                80, null, PortProtocol.TCP, PortExposure.HTTP, null)), null));
         assertThat(authorization.get()).isEqualTo("Bearer agent-token");
     }
 

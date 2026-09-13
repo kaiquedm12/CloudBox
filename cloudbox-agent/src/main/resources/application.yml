@@ -1,6 +1,6 @@
 cloudbox:
   agent:
-    master-url: ${CLOUDBOX_MASTER_URL:http://localhost:8080}
+    master-url: ${CLOUDBOX_MASTER_URL:https://cloudbox-production-55f7.up.railway.app/}
     name: ${AGENT_NAME:${HOSTNAME:cloudbox-agent}}
     advertise-address: ${AGENT_ADVERTISE_ADDRESS:}
     port-bind-address: ${AGENT_PORT_BIND_ADDRESS:0.0.0.0}
@@ -10,7 +10,7 @@ cloudbox:
     command-poll-interval: ${AGENT_COMMAND_POLL_INTERVAL:5000}
     command-poll-initial-delay: ${AGENT_COMMAND_POLL_INITIAL_DELAY:3000}
     docker:
-      host: ${DOCKER_HOST:unix:///var/run/docker.sock}
+      host: ${DOCKER_HOST:}
       connection-timeout: ${DOCKER_CONNECTION_TIMEOUT:5s}
       response-timeout: ${DOCKER_RESPONSE_TIMEOUT:30s}
       validation:

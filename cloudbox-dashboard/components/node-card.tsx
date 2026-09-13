@@ -1,12 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { ArrowRightIcon, BoxIcon } from "@/components/ui-icons";
+import {
+  MAX_SAFE_TEMPERATURE_CELSIUS,
+  usedPercentage,
+  utilizationTone,
+} from "@/lib/cluster-metrics";
+import { useLanguage } from "@/lib/i18n";
 import type { ClusterNode } from "@/types/cluster-node";
 
-type NodeCardProps = {
-  node: ClusterNode;
-};
-
 type ResourceMeterProps = {
-  accentClassName: string;
   free: number;
   label: string;
   shortLabel: string;
@@ -14,180 +18,127 @@ type ResourceMeterProps = {
   value: string;
 };
 
-const decimalFormatter = new Intl.NumberFormat("pt-BR", {
-  maximumFractionDigits: 1,
-});
+const toneClasses = {
+  healthy: "bg-blue-500",
+  warning: "bg-amber-500",
+  critical: "bg-rose-500",
+};
 
-const heartbeatFormatter = new Intl.DateTimeFormat("pt-BR", {
-  dateStyle: "short",
-  timeStyle: "medium",
-});
-
-function availablePercentage(free: number, total: number) {
-  if (!Number.isFinite(free) || !Number.isFinite(total) || total <= 0) {
-    return 0;
-  }
-
-  return Math.min(100, Math.max(0, (free / total) * 100));
+function formatMegabytes(megabytes: number, formatter: Intl.NumberFormat) {
+  return megabytes >= 1024
+    ? `${formatter.format(megabytes / 1024)} GB`
+    : `${formatter.format(megabytes)} MB`;
 }
 
-function formatMegabytes(megabytes: number) {
-  if (megabytes >= 1024) {
-    return `${decimalFormatter.format(megabytes / 1024)} GB`;
-  }
+function formatHeartbeat(
+  value: string | null,
+  locale: string,
+  missing: string,
+  unavailable: string,
+) {
+  if (!value) return missing;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return unavailable;
 
-  return `${decimalFormatter.format(megabytes)} MB`;
+  const elapsedSeconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const absoluteSeconds = Math.abs(elapsedSeconds);
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+
+  if (absoluteSeconds < 60) return formatter.format(elapsedSeconds, "second");
+  if (absoluteSeconds < 3_600) return formatter.format(Math.round(elapsedSeconds / 60), "minute");
+  if (absoluteSeconds < 86_400) return formatter.format(Math.round(elapsedSeconds / 3_600), "hour");
+  return formatter.format(Math.round(elapsedSeconds / 86_400), "day");
 }
 
-function formatHeartbeat(lastHeartbeat: string | null) {
-  if (!lastHeartbeat) {
-    return "Heartbeat ainda não recebido";
-  }
-
-  const date = new Date(lastHeartbeat);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Horário do heartbeat indisponível";
-  }
-
-  return `Último heartbeat em ${heartbeatFormatter.format(date)}`;
-}
-
-function ResourceMeter({
-  accentClassName,
-  free,
-  label,
-  shortLabel,
-  total,
-  value,
-}: ResourceMeterProps) {
-  const percentage = availablePercentage(free, total);
+function ResourceMeter({ free, label, shortLabel, total, value }: ResourceMeterProps) {
+  const { locale, t } = useLanguage();
+  const formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
+  const percentage = usedPercentage(free, total);
+  const tone = utilizationTone(percentage);
 
   return (
-    <div>
-      <div className="mb-2 flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-7 min-w-9 place-items-center rounded-lg bg-slate-100 px-1.5 text-[10px] font-bold tracking-wide text-slate-500">
-            {shortLabel}
-          </span>
-          <span className="text-sm font-medium text-slate-700">{label}</span>
+    <div className="min-w-0">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="grid h-6 min-w-8 place-items-center rounded-md bg-slate-100 px-1.5 text-[9px] font-extrabold tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">{shortLabel}</span>
+          <span className="truncate text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span>
         </div>
-        <span className="text-right text-sm font-semibold tabular-nums text-slate-950">
-          {value}
-        </span>
+        <span className="shrink-0 text-xs font-bold tabular-nums text-slate-950 dark:text-white">{formatter.format(percentage)}%</span>
       </div>
       <div
-        aria-label={`${label}: ${decimalFormatter.format(percentage)}% disponível`}
+        aria-label={`${label}: ${formatter.format(percentage)}% ${t("used")}`}
         aria-valuemax={100}
         aria-valuemin={0}
         aria-valuenow={Math.round(percentage)}
-        className="h-1.5 overflow-hidden rounded-full bg-slate-100"
+        className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
         role="progressbar"
       >
-        <div
-          className={`h-full rounded-full transition-[width] duration-500 ${accentClassName}`}
-          style={{ width: `${percentage}%` }}
-        />
+        <div className={`h-full rounded-full transition-[width] duration-500 ${toneClasses[tone]}`} style={{ width: `${percentage}%` }} />
       </div>
-      <p className="mt-1.5 text-xs text-slate-400">
-        {decimalFormatter.format(percentage)}% disponível
-      </p>
+      <p className="mt-1.5 truncate text-[11px] tabular-nums text-slate-400" title={value}>{value}</p>
     </div>
   );
 }
 
-export function NodeCard({ node }: NodeCardProps) {
+export function NodeCard({
+  containerCount = 0,
+  node,
+  variant = "grid",
+}: {
+  containerCount?: number;
+  node: ClusterNode;
+  variant?: "grid" | "list";
+}) {
+  const { locale, t } = useLanguage();
+  const numberFormatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
   const isOnline = node.status === "ONLINE";
   const temperature = node.temperatureCelsius;
-  const temperatureWarning = temperature !== null && temperature >= 80;
+  const temperatureWarning =
+    temperature !== null && temperature >= MAX_SAFE_TEMPERATURE_CELSIUS;
+  const heartbeat = formatHeartbeat(
+    node.lastHeartbeat,
+    locale,
+    t("heartbeatMissing"),
+    t("heartbeatUnavailable"),
+  );
+  const containerLabel = containerCount === 1 ? t("containerSingular") : t("containerPlural");
 
   return (
     <Link
-      aria-label={`Ver detalhes do nó ${node.name}`}
+      aria-label={`${t("viewNode")} ${node.name}`}
       className="block rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
       href={`/nodes/${encodeURIComponent(node.id)}`}
     >
-      <article
-        className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-          isOnline ? "border-slate-200" : "border-slate-200 bg-slate-50/80"
-        }`}
-      >
-        <div className="border-b border-slate-100 p-5 sm:p-6">
+      <article className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg dark:bg-slate-900 dark:hover:border-blue-800 ${isOnline ? "border-slate-200 dark:border-slate-800" : "border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-900/60"} ${variant === "list" ? "lg:grid lg:grid-cols-[minmax(220px,0.75fr)_minmax(520px,2fr)_190px] lg:items-stretch" : ""}`}>
+        <div className={`p-5 ${variant === "grid" ? "border-b border-slate-100 dark:border-slate-800" : "lg:border-r lg:border-slate-100 dark:lg:border-slate-800"}`}>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="mb-3 flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className={`size-2.5 rounded-full ${
-                    isOnline
-                      ? "bg-emerald-500 shadow-[0_0_0_4px_#d1fae5]"
-                      : "bg-slate-400"
-                  }`}
-                />
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                  Nó do cluster
-                </span>
+              <div className="mb-2.5 flex items-center gap-2">
+                <span aria-hidden="true" className={`size-2.5 rounded-full ${isOnline ? "bg-emerald-500 shadow-[0_0_0_4px_#d1fae5] dark:shadow-[0_0_0_4px_#064e3b]" : "bg-slate-400"}`} />
+                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{isOnline ? t("onlineNodesFilter") : t("offlineNodesFilter")}</span>
               </div>
-              <h2 className="truncate text-xl font-semibold tracking-tight text-slate-950">
-                {node.name}
-              </h2>
+              <h2 className="truncate text-lg font-bold tracking-tight text-slate-950 transition group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400">{node.name}</h2>
+              <p className="mt-1 text-xs text-slate-400">{isOnline ? t("lastHeartbeatAt") : t("lastReading")}: {heartbeat}</p>
             </div>
-            <span
-              aria-label={`Status: ${isOnline ? "online" : "offline"}`}
-              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                isOnline
-                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
-                  : "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200"
-              }`}
-            >
-              {isOnline ? "Online" : "Offline"}
-            </span>
+            <ArrowRightIcon className="mt-1 size-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-500" />
           </div>
-          <p className="mt-3 text-xs text-slate-400">
-            {formatHeartbeat(node.lastHeartbeat)}
-          </p>
           <p className="mt-1 truncate font-mono text-xs text-slate-400">
-            {node.advertiseAddress ?? "Endereço de acesso não anunciado"}
+            {t("advertisedAddress")}: {node.advertiseAddress ?? t("advertisedAddressMissing")}
           </p>
         </div>
 
-        <div className="space-y-5 p-5 sm:p-6">
-          <ResourceMeter
-            accentClassName="bg-blue-500"
-            free={node.cpuFree}
-            label="CPU livre"
-            shortLabel="CPU"
-            total={node.cpuTotal}
-            value={`${decimalFormatter.format(node.cpuFree)} / ${decimalFormatter.format(node.cpuTotal)} núcleos`}
-          />
-          <ResourceMeter
-            accentClassName="bg-violet-500"
-            free={node.ramFreeMb}
-            label="RAM livre"
-            shortLabel="RAM"
-            total={node.ramTotalMb}
-            value={`${formatMegabytes(node.ramFreeMb)} / ${formatMegabytes(node.ramTotalMb)}`}
-          />
-          <ResourceMeter
-            accentClassName="bg-cyan-500"
-            free={node.diskFreeMb}
-            label="Disco livre"
-            shortLabel="SSD"
-            total={node.diskTotalMb}
-            value={`${formatMegabytes(node.diskFreeMb)} / ${formatMegabytes(node.diskTotalMb)}`}
-          />
+        <div className={`grid gap-4 p-5 ${variant === "list" ? "sm:grid-cols-3" : ""} ${isOnline ? "" : "opacity-60"}`}>
+          <ResourceMeter free={node.cpuFree} label={t("cpuUsage")} shortLabel="CPU" total={node.cpuTotal} value={`${numberFormatter.format(node.cpuFree)} ${t("of")} ${numberFormatter.format(node.cpuTotal)} ${t("cores")} ${t("available")}`} />
+          <ResourceMeter free={node.ramFreeMb} label={t("ramUsage")} shortLabel="RAM" total={node.ramTotalMb} value={`${formatMegabytes(node.ramFreeMb, numberFormatter)} ${t("of")} ${formatMegabytes(node.ramTotalMb, numberFormatter)} ${t("available")}`} />
+          <ResourceMeter free={node.diskFreeMb} label={t("diskUsage")} shortLabel="SSD" total={node.diskTotalMb} value={`${formatMegabytes(node.diskFreeMb, numberFormatter)} ${t("of")} ${formatMegabytes(node.diskTotalMb, numberFormatter)} ${t("available")}`} />
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6">
-          <span className="text-sm font-medium text-slate-500">Temperatura</span>
-          <span
-            className={`text-sm font-semibold tabular-nums ${
-              temperatureWarning ? "text-rose-600" : "text-slate-800"
-            }`}
-          >
-            {temperature !== null
-              ? `${decimalFormatter.format(temperature)} °C`
-              : "Sem sensor"}
+        <div className={`flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/70 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-950/30 ${variant === "list" ? "lg:flex-col lg:items-start lg:justify-center lg:border-l lg:border-t-0" : ""}`}>
+          <span className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <BoxIcon className="size-4" /> {containerCount} {containerLabel}
+          </span>
+          <span className={`rounded-lg px-2 py-1 text-xs font-bold tabular-nums ${temperatureWarning ? "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300" : "text-slate-700 dark:text-slate-300"}`}>
+            {temperature !== null ? `${numberFormatter.format(temperature)} °C` : t("noSensor")}
           </span>
         </div>
       </article>

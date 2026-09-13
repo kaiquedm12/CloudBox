@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
-const DEFAULT_ORCHESTRATOR_URL = "http://localhost:8080";
+const DEFAULT_ORCHESTRATOR_URL =
+  "https://cloudbox-production-55f7.up.railway.app";
 const orchestratorUrl = (
   process.env.ORCHESTRATOR_URL?.trim() || DEFAULT_ORCHESTRATOR_URL
 ).replace(/\/+$/, "");

@@ -22,6 +22,8 @@ class NodeScoringStrategyTest {
         node.setCpuFree(cpuFree);
         node.setRamTotalMb(ramTotalMb);
         node.setRamFreeMb(ramFreeMb);
+        node.setDiskTotalMb(100_000);
+        node.setDiskFreeMb(50_000);
         return node;
     }
 
@@ -31,7 +33,7 @@ class NodeScoringStrategyTest {
         Node bigger = node(UUID.randomUUID(), new BigDecimal("8.00"), new BigDecimal("8.00"), 16384, 16384);
         Node tight = node(UUID.randomUUID(), new BigDecimal("2.00"), new BigDecimal("2.00"), 4096, 2048);
 
-        Optional<Node> result = strategy.selectBest(List.of(smaller, tight, bigger), new BigDecimal("1.00"), 1024);
+        Optional<Node> result = strategy.selectBest(List.of(smaller, tight, bigger), new BigDecimal("1.00"), 1024, 1024);
 
         assertThat(result).hasValue(bigger);
     }
@@ -41,14 +43,14 @@ class NodeScoringStrategyTest {
         Node moreRam = node(UUID.randomUUID(), new BigDecimal("8.00"), new BigDecimal("6.00"), 16384, 8192);
         Node lessRam = node(UUID.randomUUID(), new BigDecimal("8.00"), new BigDecimal("6.00"), 16384, 4096);
 
-        Optional<Node> result = strategy.selectBest(List.of(lessRam, moreRam), new BigDecimal("1.00"), 1024);
+        Optional<Node> result = strategy.selectBest(List.of(lessRam, moreRam), new BigDecimal("1.00"), 1024, 1024);
 
         assertThat(result).hasValue(moreRam);
     }
 
     @Test
     void returnsEmptyForEmptyCandidates() {
-        Optional<Node> result = strategy.selectBest(List.of(), new BigDecimal("1.00"), 1024);
+        Optional<Node> result = strategy.selectBest(List.of(), new BigDecimal("1.00"), 1024, 1024);
 
         assertThat(result).isEmpty();
     }

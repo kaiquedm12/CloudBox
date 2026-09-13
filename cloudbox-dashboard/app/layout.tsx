@@ -21,12 +21,19 @@ export default async function RootLayout({
   const isAuthenticated = (await cookies()).has(AUTH_COOKIE_NAME);
 
   return (
-    <html lang="pt-BR">
-      <body className="min-h-screen bg-slate-50 text-slate-950 antialiased">
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('cloudbox-theme');var d=t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';var l=localStorage.getItem('cloudbox-language');if(l==='en'||l==='pt-BR')document.documentElement.lang=l}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-slate-50 text-slate-950 antialiased dark:bg-slate-950 dark:text-slate-100">
         <Providers realtimeEnabled={isAuthenticated}>
           <div className="min-h-screen">
             <Header isAuthenticated={isAuthenticated} />
-            <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+            <main className="mx-auto w-full max-w-7xl px-4 py-7 sm:px-8 sm:py-9 lg:px-10">
               {children}
             </main>
           </div>

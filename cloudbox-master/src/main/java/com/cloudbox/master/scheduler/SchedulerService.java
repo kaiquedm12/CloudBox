@@ -24,14 +24,19 @@ public class SchedulerService {
     }
 
     public Optional<Node> schedule(BigDecimal cpuRequested, Integer ramRequestedMb) {
-        return schedule(cpuRequested, ramRequestedMb, false);
+        return schedule(cpuRequested, ramRequestedMb, 0, false);
     }
 
     public Optional<Node> schedule(BigDecimal cpuRequested, Integer ramRequestedMb,
-                                   boolean requiresAdvertiseAddress) {
+                                   Integer diskRequestedMb) {
+        return schedule(cpuRequested, ramRequestedMb, diskRequestedMb, false);
+    }
+
+    public Optional<Node> schedule(BigDecimal cpuRequested, Integer ramRequestedMb,
+                                   Integer diskRequestedMb, boolean requiresAdvertiseAddress) {
         List<Node> onlineNodes = nodeRepository.findByStatus(NodeStatus.ONLINE);
         List<Node> candidates = nodeCandidateFilter.filterCandidates(
-                onlineNodes, cpuRequested, ramRequestedMb, requiresAdvertiseAddress);
-        return nodeScoringStrategy.selectBest(candidates, cpuRequested, ramRequestedMb);
+                onlineNodes, cpuRequested, ramRequestedMb, diskRequestedMb, requiresAdvertiseAddress);
+        return nodeScoringStrategy.selectBest(candidates, cpuRequested, ramRequestedMb, diskRequestedMb);
     }
 }

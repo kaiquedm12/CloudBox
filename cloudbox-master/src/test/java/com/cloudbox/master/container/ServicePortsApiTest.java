@@ -2,6 +2,7 @@ package com.cloudbox.master.container;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,11 +64,14 @@ class ServicePortsApiTest {
         when(containers.findById(any(UUID.class)))
                 .thenAnswer(invocation -> Optional.ofNullable(stored.get(invocation.getArgument(0))));
         when(containers.findAll()).thenAnswer(invocation -> List.copyOf(stored.values()));
-        when(containers.findByNodeIdAndStatus(any(UUID.class), any(ContainerStatus.class)))
-                .thenAnswer(invocation -> stored.values().stream()
+        when(containers.findByNodeIdAndStatusIn(any(UUID.class), anySet()))
+                .thenAnswer(invocation -> {
+                    Set<ContainerStatus> statuses = invocation.getArgument(1);
+                    return stored.values().stream()
                         .filter(container -> container.getNodeId().equals(invocation.getArgument(0)))
-                        .filter(container -> container.getStatus() == invocation.getArgument(1))
-                        .toList());
+                        .filter(container -> statuses.contains(container.getStatus()))
+                        .toList();
+                });
 
         SchedulerService scheduler = new SchedulerService(nodes,
                 new NodeCandidateFilter(new SchedulerProperties()), new NodeScoringStrategy());
@@ -207,6 +212,8 @@ class ServicePortsApiTest {
         node.setCpuFree(BigDecimal.valueOf(cpu));
         node.setRamTotalMb(8192);
         node.setRamFreeMb(8192);
+        node.setDiskTotalMb(100_000);
+        node.setDiskFreeMb(50_000);
         return node;
     }
 }

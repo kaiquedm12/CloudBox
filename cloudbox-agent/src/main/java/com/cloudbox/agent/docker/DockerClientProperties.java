@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "cloudbox.agent.docker")
 public class DockerClientProperties {
 
-    private String host = "unix:///var/run/docker.sock";
+    private String host;
     private Duration connectionTimeout = Duration.ofSeconds(5);
     private Duration responseTimeout = Duration.ofSeconds(30);
 

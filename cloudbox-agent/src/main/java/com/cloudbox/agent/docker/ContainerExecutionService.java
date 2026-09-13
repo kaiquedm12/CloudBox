@@ -44,6 +44,10 @@ public class ContainerExecutionService {
         this.properties = properties;
     }
 
+    public void verifyDockerAvailable() {
+        dockerClient.pingCmd().exec();
+    }
+
     public void pullImage(String image) {
         try {
             dockerClient.pullImageCmd(image)

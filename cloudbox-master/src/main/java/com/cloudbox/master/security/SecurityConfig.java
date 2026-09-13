@@ -3,6 +3,7 @@ package com.cloudbox.master.security;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
@@ -14,10 +15,21 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private static final RequestMatcher AGENT_ENDPOINTS = request -> {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        String method = request.getMethod();
+
+        return (HttpMethod.POST.matches(method) && "/api/nodes/register".equals(path))
+                || (HttpMethod.POST.matches(method) && path.matches("/api/nodes/[^/]+/heartbeat"))
+                || (HttpMethod.GET.matches(method) && path.matches("/api/nodes/[^/]+/pending-commands"))
+                || (HttpMethod.POST.matches(method) && path.matches("/api/containers/[^/]+/status"));
+    };
 
     private final JwtAuthFilter jwtAuthFilter;
 
@@ -26,7 +38,21 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Order(1)
+    SecurityFilterChain agentSecurityFilterChain(HttpSecurity http) throws Exception {
+        // JWT autentica usuários do dashboard. A identidade do agente, quando necessária,
+        // é validada pelo AgentTokenValidator com o token opaco emitido no registro.
+        return http
+                .securityMatcher(AGENT_ENDPOINTS)
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+                .build();
+    }
+
+    @Bean
+    @Order(2)
+    SecurityFilterChain dashboardSecurityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -38,10 +64,6 @@ public class SecurityConfig {
                 }))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/nodes/register").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/nodes/*/heartbeat").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/nodes/*/pending-commands").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/containers/*/status").permitAll()
                         .requestMatchers("/actuator/health", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
                         .anyRequest().authenticated())

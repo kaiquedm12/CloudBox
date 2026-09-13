@@ -31,7 +31,7 @@ class PendingCommandPollerTest {
         UUID nodeId = UUID.randomUUID();
         UUID requestId = UUID.randomUUID();
         AgentCredentials credentials = new AgentCredentials(nodeId, "token");
-        PendingCommand command = new PendingCommand(requestId, "nginx:alpine", 1, 64, 128);
+        PendingCommand command = new PendingCommand(requestId, "START", "nginx:alpine", 1, 64, 128, null);
         when(registration.ensureRegistered()).thenReturn(credentials);
         when(client.pendingCommands(nodeId, "token")).thenReturn(List.of(command));
         ContainerLaunchResult result = new ContainerLaunchResult(
@@ -55,7 +55,7 @@ class PendingCommandPollerTest {
         UUID requestId = UUID.randomUUID();
         RuntimeException failure = new RuntimeException("image not found");
         AgentCredentials credentials = new AgentCredentials(nodeId, "token");
-        PendingCommand command = new PendingCommand(requestId, "missing:latest", 1, 64, 128);
+        PendingCommand command = new PendingCommand(requestId, "START", "missing:latest", 1, 64, 128, null);
         when(registration.ensureRegistered()).thenReturn(credentials);
         when(client.pendingCommands(nodeId, "token")).thenReturn(List.of(command));
         when(execution.runContainer(
@@ -75,7 +75,7 @@ class PendingCommandPollerTest {
         ContainerStatusReporter reporter = Mockito.mock(ContainerStatusReporter.class);
         UUID nodeId = UUID.randomUUID();
         UUID requestId = UUID.randomUUID();
-        PendingCommand command = new PendingCommand(requestId, "nginx:alpine", 1, 64, 128);
+        PendingCommand command = new PendingCommand(requestId, "START", "nginx:alpine", 1, 64, 128, null);
         when(registration.ensureRegistered()).thenReturn(new AgentCredentials(nodeId, "token"));
         when(client.pendingCommands(nodeId, "token")).thenReturn(List.of(command));
         ContainerLaunchResult result = new ContainerLaunchResult(
@@ -95,5 +95,41 @@ class PendingCommandPollerTest {
                 "nginx:alpine", "cloudbox-" + requestId, requestId.toString(), 1, 64, List.of());
         verify(reporter, times(2)).running(requestId, "token", result);
         verify(reporter, never()).error(Mockito.any(), Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void shouldStopContainerAndReportStopped() {
+        OrchestratorClient client = Mockito.mock(OrchestratorClient.class);
+        NodeRegistrationService registration = Mockito.mock(NodeRegistrationService.class);
+        ContainerExecutionService execution = Mockito.mock(ContainerExecutionService.class);
+        ContainerStatusReporter reporter = Mockito.mock(ContainerStatusReporter.class);
+        UUID nodeId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        when(registration.ensureRegistered()).thenReturn(new AgentCredentials(nodeId, "token"));
+        when(client.pendingCommands(nodeId, "token")).thenReturn(List.of(
+                new PendingCommand(requestId, "STOP", "nginx:alpine", 1, 64, 128, "docker-123")));
+
+        new PendingCommandPoller(client, registration, execution, reporter).poll();
+
+        verify(execution).stopContainer("docker-123");
+        verify(reporter).stopped(requestId, "token");
+    }
+
+    @Test
+    void shouldRemoveContainerAndReportRemoved() {
+        OrchestratorClient client = Mockito.mock(OrchestratorClient.class);
+        NodeRegistrationService registration = Mockito.mock(NodeRegistrationService.class);
+        ContainerExecutionService execution = Mockito.mock(ContainerExecutionService.class);
+        ContainerStatusReporter reporter = Mockito.mock(ContainerStatusReporter.class);
+        UUID nodeId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        when(registration.ensureRegistered()).thenReturn(new AgentCredentials(nodeId, "token"));
+        when(client.pendingCommands(nodeId, "token")).thenReturn(List.of(
+                new PendingCommand(requestId, "REMOVE", "nginx:alpine", 1, 64, 128, "docker-123")));
+
+        new PendingCommandPoller(client, registration, execution, reporter).poll();
+
+        verify(execution).removeContainer("docker-123");
+        verify(reporter).removed(requestId, "token");
     }
 }

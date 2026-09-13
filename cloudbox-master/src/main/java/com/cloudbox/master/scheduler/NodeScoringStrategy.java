@@ -11,12 +11,15 @@ import com.cloudbox.master.node.Node;
 public class
 NodeScoringStrategy {
 
-    public Optional<Node> selectBest(List<Node> candidates, BigDecimal cpuRequested, Integer ramRequestedMb) {
-        return candidates.stream().max((a, b) -> compare(a, b, cpuRequested, ramRequestedMb));
+    public Optional<Node> selectBest(List<Node> candidates, BigDecimal cpuRequested, Integer ramRequestedMb,
+                                     Integer diskRequestedMb) {
+        return candidates.stream().max((a, b) -> compare(
+                a, b, cpuRequested, ramRequestedMb, diskRequestedMb));
     }
 
-    private int compare(Node a, Node b, BigDecimal cpuRequested, Integer ramRequestedMb) {
-        int scoreCmp = score(a, cpuRequested, ramRequestedMb).compareTo(score(b, cpuRequested, ramRequestedMb));
+    private int compare(Node a, Node b, BigDecimal cpuRequested, Integer ramRequestedMb, Integer diskRequestedMb) {
+        int scoreCmp = score(a, cpuRequested, ramRequestedMb, diskRequestedMb)
+                .compareTo(score(b, cpuRequested, ramRequestedMb, diskRequestedMb));
         if (scoreCmp != 0) {
             return scoreCmp;
         }
@@ -29,8 +32,10 @@ NodeScoringStrategy {
         return a.getCpuFree().subtract(cpuRequested).compareTo(b.getCpuFree().subtract(cpuRequested));
     }
 
-    private BigDecimal score(Node node, BigDecimal cpuRequested, Integer ramRequestedMb) {
-        return ramSlack(node, ramRequestedMb).add(cpuSlack(node, cpuRequested));
+    private BigDecimal score(Node node, BigDecimal cpuRequested, Integer ramRequestedMb, Integer diskRequestedMb) {
+        return ramSlack(node, ramRequestedMb)
+                .add(cpuSlack(node, cpuRequested))
+                .add(diskSlack(node, diskRequestedMb));
     }
 
     private BigDecimal ramSlack(Node node, Integer ramRequestedMb) {
@@ -48,5 +53,14 @@ NodeScoringStrategy {
             return slack;
         }
         return slack.divide(node.getCpuTotal(), 6, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal diskSlack(Node node, Integer diskRequestedMb) {
+        long slackValue = (long) node.getDiskFreeMb() - diskRequestedMb;
+        BigDecimal slack = BigDecimal.valueOf(slackValue);
+        if (node.getDiskTotalMb() == null || node.getDiskTotalMb() == 0) {
+            return slack;
+        }
+        return slack.divide(BigDecimal.valueOf(node.getDiskTotalMb()), 6, RoundingMode.HALF_UP);
     }
 }

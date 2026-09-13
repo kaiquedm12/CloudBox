@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,7 +40,7 @@ public class ContainerController {
         Optional<ContainerResponse> response = containerService.create(request);
         if (response.isEmpty()) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("error", "Nenhum nó disponível com recursos suficientes no momento"));
+                    .body(Map.of("error", "Nenhum nó disponível com CPU, RAM e disco suficientes no momento"));
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(response.get());
     }
@@ -47,6 +48,16 @@ public class ContainerController {
     @GetMapping
     public ResponseEntity<List<ContainerResponse>> findAll() {
         return ResponseEntity.ok(containerService.findAll());
+    }
+
+    @PostMapping("/{id}/stop")
+    public ResponseEntity<ContainerResponse> stop(@PathVariable UUID id) {
+        return ResponseEntity.accepted().body(containerService.stop(id));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ContainerResponse> remove(@PathVariable UUID id) {
+        return ResponseEntity.accepted().body(containerService.remove(id));
     }
 
     @Operation(

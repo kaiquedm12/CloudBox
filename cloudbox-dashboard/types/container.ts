@@ -2,7 +2,10 @@ export type ContainerStatus =
   | "PENDING"
   | "SCHEDULED"
   | "RUNNING"
+  | "STOPPING"
   | "STOPPED"
+  | "REMOVING"
+  | "REMOVED"
   | "ERROR"
   | "FAILED";
 

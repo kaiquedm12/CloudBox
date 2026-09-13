@@ -24,8 +24,8 @@ A visão geral faz a carga inicial por `GET /api/nodes` e recebe atualizações 
 WebSocket autenticado `/ws/cluster-status`. O cliente reconecta automaticamente e
 sincroniza os caches de nós e containers ao receber eventos.
 
-A página `/containers` lista as cargas existentes e permite solicitar um novo
-container com validação Zod. Os cards da visão geral levam à página
+A página `/containers` lista as cargas existentes em uma tabela, permite solicitar um novo
+container com validação Zod e encaminha ações de parada e remoção ao agente do nó. Os cards da visão geral levam à página
 `/nodes/[id]`, que reúne métricas, heartbeat e containers alocados no nó.
 
 ## Scripts

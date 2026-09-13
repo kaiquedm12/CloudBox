@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import com.cloudbox.agent.client.HeartbeatRequest;
 import com.cloudbox.agent.client.OrchestratorClient;
+import com.cloudbox.agent.docker.ContainerExecutionService;
 import com.cloudbox.agent.metrics.MetricsCollector;
 import com.cloudbox.agent.metrics.SystemMetrics;
 
@@ -21,14 +22,17 @@ public class HeartbeatScheduler {
     private final OrchestratorClient orchestratorClient;
     private final NodeRegistrationService registrationService;
     private final MetricsCollector metricsCollector;
+    private final ContainerExecutionService containerExecutionService;
 
     public HeartbeatScheduler(
             OrchestratorClient orchestratorClient,
             NodeRegistrationService registrationService,
-            MetricsCollector metricsCollector) {
+            MetricsCollector metricsCollector,
+            ContainerExecutionService containerExecutionService) {
         this.orchestratorClient = orchestratorClient;
         this.registrationService = registrationService;
         this.metricsCollector = metricsCollector;
+        this.containerExecutionService = containerExecutionService;
     }
 
     @Scheduled(
@@ -36,6 +40,7 @@ public class HeartbeatScheduler {
             fixedDelayString = "${cloudbox.agent.heartbeat-interval:10000}")
     public void sendHeartbeat() {
         try {
+            containerExecutionService.verifyDockerAvailable();
             AgentCredentials credentials = registrationService.ensureRegistered();
             SystemMetrics metrics = metricsCollector.collect();
             BigDecimal cpuFree = BigDecimal.valueOf(

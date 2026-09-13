@@ -5,28 +5,12 @@ import { ContainerList } from "@/components/container-list";
 import { useClusterStatus } from "@/hooks/use-cluster-status";
 import { useContainers } from "@/hooks/use-containers";
 import { useNode } from "@/hooks/use-nodes";
+import { useLanguage } from "@/lib/i18n";
 
-const numberFormatter = new Intl.NumberFormat("pt-BR", {
-  maximumFractionDigits: 1,
-});
-
-const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
-  dateStyle: "long",
-  timeStyle: "medium",
-});
-
-function megabytes(value: number) {
+function megabytes(value: number, formatter: Intl.NumberFormat) {
   return value >= 1024
-    ? `${numberFormatter.format(value / 1024)} GB`
-    : `${numberFormatter.format(value)} MB`;
-}
-
-function heartbeat(value: string | null) {
-  if (!value) {
-    return "Ainda não recebido";
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Data indisponível" : dateFormatter.format(date);
+    ? `${formatter.format(value / 1024)} GB`
+    : `${formatter.format(value)} MB`;
 }
 
 function Metric({
@@ -45,6 +29,14 @@ function Metric({
 }
 
 export function NodeDetail({ nodeId }: { nodeId: string }) {
+  const { locale, t } = useLanguage();
+  const numberFormatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+  const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "medium" });
+  function heartbeat(value: string | null) {
+    if (!value) return t("notReceived");
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? t("dateUnavailable") : dateFormatter.format(date);
+  }
   const { connectionStatus } = useClusterStatus();
   const nodeQuery = useNode(nodeId);
   const containersQuery = useContainers();
@@ -52,7 +44,7 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
   if (nodeQuery.isPending) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
-        Carregando dados do nó...
+        {t("loadingNode")}
       </div>
     );
   }
@@ -60,13 +52,13 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
   if (nodeQuery.isError) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6" role="alert">
-        <p className="font-semibold text-rose-900">Não foi possível carregar o nó</p>
+        <p className="font-semibold text-rose-900">{t("loadNodeFailed")}</p>
         <button
           className="mt-3 text-sm font-semibold text-rose-700 underline underline-offset-4"
           onClick={() => void nodeQuery.refetch()}
           type="button"
         >
-          Tentar novamente
+          {t("tryAgain")}
         </button>
       </div>
     );
@@ -77,12 +69,12 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
   if (!node) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-950">Nó não encontrado</h1>
+        <h1 className="text-2xl font-semibold text-slate-950">{t("nodeNotFound")}</h1>
         <p className="mt-3 text-slate-600">
-          O identificador informado não corresponde a um nó registrado.
+          {t("nodeNotFoundDescription")}
         </p>
         <Link className="mt-5 inline-block font-semibold text-blue-600" href="/">
-          Voltar para a visão geral
+          {t("backOverview")}
         </Link>
       </div>
     );
@@ -103,7 +95,7 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
           className="text-sm font-semibold text-blue-600 transition hover:text-blue-700"
           href="/"
         >
-          ← Voltar para a visão geral
+          ← {t("backOverview")}
         </Link>
         <div className="mt-5 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
@@ -137,38 +129,38 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
                   : "animate-pulse bg-amber-500"
               }`}
             />
-            {connectionStatus === "connected" ? "Tempo real conectado" : "Reconectando..."}
+            {connectionStatus === "connected" ? t("realtimeShortConnected") : t("reconnecting")}
           </div>
         </div>
       </div>
 
       <section aria-labelledby="metrics-title">
         <h2 className="text-xl font-semibold text-slate-950" id="metrics-title">
-          Métricas atuais
+          {t("currentMetrics")}
         </h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Metric
-            label="CPU disponível"
-            value={`${numberFormatter.format(node.cpuFree)} de ${numberFormatter.format(node.cpuTotal)} núcleos`}
+            label={t("availableCpu")}
+            value={`${numberFormatter.format(node.cpuFree)} ${t("of")} ${numberFormatter.format(node.cpuTotal)} ${t("cores")}`}
           />
           <Metric
-            label="RAM disponível"
-            value={`${megabytes(node.ramFreeMb)} de ${megabytes(node.ramTotalMb)}`}
+            label={t("availableRam")}
+            value={`${megabytes(node.ramFreeMb, numberFormatter)} ${t("of")} ${megabytes(node.ramTotalMb, numberFormatter)}`}
           />
           <Metric
-            label="Disco disponível"
-            value={`${megabytes(node.diskFreeMb)} de ${megabytes(node.diskTotalMb)}`}
+            label={t("availableDisk")}
+            value={`${megabytes(node.diskFreeMb, numberFormatter)} ${t("of")} ${megabytes(node.diskTotalMb, numberFormatter)}`}
           />
           <Metric
-            label="Temperatura"
+            label={t("temperature")}
             value={
               node.temperatureCelsius === null
-                ? "Sem sensor"
+                ? t("noSensor")
                 : `${numberFormatter.format(node.temperatureCelsius)} °C`
             }
           />
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:col-span-2">
-            <dt className="text-sm text-slate-500">Último heartbeat</dt>
+            <dt className="text-sm text-slate-500">{t("lastHeartbeat")}</dt>
             <dd className="mt-2 text-base font-semibold text-slate-950">
               {heartbeat(node.lastHeartbeat)}
             </dd>
@@ -180,33 +172,33 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-950" id="node-containers-title">
-              Containers alocados
+              {t("allocatedContainers")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              {containers.length} {containers.length === 1 ? "container" : "containers"} neste nó
+              {containers.length} {containers.length === 1 ? "container" : "containers"} {t("onThisNode")}
             </p>
           </div>
         </div>
 
         {containersQuery.isPending ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-            Carregando containers...
+            {t("loadingContainers")}
           </div>
         ) : containersQuery.isError ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5" role="alert">
-            <p className="text-sm text-rose-700">Não foi possível carregar os containers deste nó.</p>
+            <p className="text-sm text-rose-700">{t("loadNodeContainersFailed")}</p>
             <button
               className="mt-2 text-sm font-semibold text-rose-700 underline underline-offset-4"
               onClick={() => void containersQuery.refetch()}
               type="button"
             >
-              Tentar novamente
+              {t("tryAgain")}
             </button>
           </div>
         ) : (
           <ContainerList
             containers={containers}
-            emptyMessage="Este nó ainda não possui containers alocados."
+            emptyMessage={t("noNodeContainers")}
             nodeStatuses={new Map([[node.id, node.status]])}
           />
         )}

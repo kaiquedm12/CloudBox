@@ -17,17 +17,23 @@ public class NodeCandidateFilter {
     }
 
     public List<Node> filterCandidates(List<Node> allNodes, BigDecimal cpuRequested, Integer ramRequestedMb) {
-        return filterCandidates(allNodes, cpuRequested, ramRequestedMb, false);
+        return filterCandidates(allNodes, cpuRequested, ramRequestedMb, 0, false);
     }
 
     public List<Node> filterCandidates(List<Node> allNodes, BigDecimal cpuRequested, Integer ramRequestedMb,
-                                       boolean requiresAdvertiseAddress) {
+                                       Integer diskRequestedMb) {
+        return filterCandidates(allNodes, cpuRequested, ramRequestedMb, diskRequestedMb, false);
+    }
+
+    public List<Node> filterCandidates(List<Node> allNodes, BigDecimal cpuRequested, Integer ramRequestedMb,
+                                       Integer diskRequestedMb, boolean requiresAdvertiseAddress) {
         BigDecimal maxTemperatureCelsius = schedulerProperties.getMaxTemperatureCelsius();
 
         return allNodes.stream()
                 .filter(node -> node.getStatus() == NodeStatus.ONLINE)
                 .filter(node -> node.getCpuFree().compareTo(cpuRequested) >= 0)
                 .filter(node -> node.getRamFreeMb() >= ramRequestedMb)
+                .filter(node -> node.getDiskFreeMb() != null && node.getDiskFreeMb() >= diskRequestedMb)
                 .filter(node -> !requiresAdvertiseAddress
                         || NetworkAddress.isValidAdvertiseAddress(node.getAdvertiseAddress())
                         && node.getAdvertiseAddress() != null)
