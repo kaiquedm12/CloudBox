@@ -3,6 +3,11 @@ package com.cloudbox.agent.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.jupiter.api.Test;
 
 class AgentClientPropertiesTest {
@@ -30,13 +35,56 @@ class AgentClientPropertiesTest {
     }
 
     @Test
-    void shouldTreatBlankAdvertiseAddressAsAbsent() {
-        AgentClientProperties properties = new AgentClientProperties();
+    void shouldAutoDetectAdvertiseAddressWhenConfigurationIsBlank() {
+        AtomicInteger detections = new AtomicInteger();
+        AgentClientProperties properties = new AgentClientProperties(masterUrl -> {
+            detections.incrementAndGet();
+            assertThat(masterUrl).isEqualTo("https://master.example.test");
+            return "192.168.1.50";
+        });
 
+        properties.setMasterUrl("https://master.example.test");
         properties.setAdvertiseAddress("  ");
 
-        assertThat(properties.getAdvertiseAddress()).isNull();
+        assertThat(properties.getAdvertiseAddress()).isEqualTo("192.168.1.50");
+        assertThat(properties.getAdvertiseAddress()).isEqualTo("192.168.1.50");
+        assertThat(detections).hasValue(1);
         assertThat(properties.getPortBindAddress()).isEqualTo("0.0.0.0");
+    }
+
+    @Test
+    void shouldAllowAutomaticDetectionToBeDisabled() {
+        AgentClientProperties properties = new AgentClientProperties(masterUrl -> "192.168.1.50");
+
+        properties.setAdvertiseAddress(" ");
+        properties.setAutoDetectAdvertiseAddress(false);
+
+        assertThat(properties.getAdvertiseAddress()).isNull();
+    }
+
+    @Test
+    void shouldPreferConfiguredAddressOverAutomaticDetection() {
+        AtomicInteger detections = new AtomicInteger();
+        AgentClientProperties properties = new AgentClientProperties(masterUrl -> {
+            detections.incrementAndGet();
+            return "192.168.1.50";
+        });
+
+        properties.setAdvertiseAddress("node-a.example.test");
+
+        assertThat(properties.getAdvertiseAddress()).isEqualTo("node-a.example.test");
+        assertThat(detections).hasValue(0);
+    }
+
+    @Test
+    void shouldPreferPrivateIpv4WhenSelectingAnInterfaceAddress() throws UnknownHostException {
+        String selected = AdvertiseAddressDetector.selectBestAddress(List.of(
+                InetAddress.getByName("2001:db8::10"),
+                InetAddress.getByName("203.0.113.10"),
+                InetAddress.getByName("192.168.1.50"),
+                InetAddress.getLoopbackAddress()));
+
+        assertThat(selected).isEqualTo("192.168.1.50");
     }
 
     @Test

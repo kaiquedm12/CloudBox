@@ -6,8 +6,13 @@ volumes, segredos, health checks, gateway, HTTPS ou reassendamento.
 
 ## Configurar o nó
 
-No terminal que executa o agente, configure o endereço alcançável da máquina que
-hospeda o Docker. Por exemplo, substituindo o IP abaixo pelo IP real do nó:
+Por padrão, o agente detecta automaticamente o IP da interface usada para alcançar
+o master e envia esse endereço ao registrar o nó. O dashboard deve exibi-lo no
+campo “Endereço anunciado”.
+
+Quando a detecção automática não representar o endereço alcançável do host Docker
+(por exemplo, agente dentro de container, VPN ou múltiplas interfaces), configure
+o endereço manualmente no terminal que executa o agente:
 
 ```bash
 export AGENT_ADVERTISE_ADDRESS=192.168.1.50
@@ -17,6 +22,8 @@ export CLOUDBOX_MASTER_URL=http://192.168.1.10:8080
 
 `AGENT_ADVERTISE_ADDRESS` pode ser IPv4, IPv6 sem colchetes ou hostname DNS sem
 esquema/porta. O endereço não cria uma rota: clientes precisam conseguir alcançá-lo.
+`AGENT_AUTO_DETECT_ADVERTISE_ADDRESS=false` desativa a detecção automática quando
+nenhum endereço deve ser anunciado.
 `AGENT_PORT_BIND_ADDRESS` é um IP de interface do host Docker. O padrão `0.0.0.0`
 publica em todas as interfaces IPv4. Para restringir a uma interface privada,
 configure seu IP; para acesso somente no próprio nó, configure `127.0.0.1`.
