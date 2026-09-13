@@ -707,6 +707,9 @@ Propriedades Spring podem também ser sobrescritas pelas convenções usuais de 
 |---|---|---|
 | `CLOUDBOX_MASTER_URL` | URL pública Railway definida no YAML | Endereço do master |
 | `AGENT_NAME` | `HOSTNAME` ou `cloudbox-agent` | Nome do nó |
+| `AGENT_ADVERTISE_ADDRESS` | Detectado automaticamente | Endereço alcançável do host Docker; uma configuração explícita tem prioridade |
+| `AGENT_AUTO_DETECT_ADVERTISE_ADDRESS` | `true` | Habilita a detecção automática do endereço anunciado |
+| `AGENT_PORT_BIND_ADDRESS` | `0.0.0.0` | IP usado para publicar portas no host Docker |
 | `AGENT_TOKEN_FILE` | `${user.home}/.cloudbox/agent-credentials.properties` | Arquivo de identidade |
 | `AGENT_HEARTBEAT_INTERVAL` | `10000` ms | Intervalo de heartbeat |
 | `AGENT_HEARTBEAT_INITIAL_DELAY` | `2000` ms | Atraso inicial |

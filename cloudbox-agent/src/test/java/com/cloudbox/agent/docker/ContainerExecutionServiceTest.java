@@ -230,6 +230,7 @@ class ContainerExecutionServiceTest {
     private static AgentClientProperties properties(String advertiseAddress, String bindAddress) {
         AgentClientProperties properties = new AgentClientProperties();
         properties.setAdvertiseAddress(advertiseAddress);
+        properties.setAutoDetectAdvertiseAddress(advertiseAddress != null);
         properties.setPortBindAddress(bindAddress);
         return properties;
     }
