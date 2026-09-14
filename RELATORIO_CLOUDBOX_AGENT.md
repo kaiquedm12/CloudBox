@@ -1,8 +1,18 @@
 # Relatório de implementação do CloudBox Agent
 
+## Atualização de andamento — 14/09/2026
+
+A equipe relatou a conclusão do primeiro fluxo integrado com o **2048**: cadastro do computador pelo agente, envio de recursos, visualização do nó no painel, solicitação e execução do container pelo Docker e abertura do jogo em outro navegador por um endereço de acesso. O projeto passa a ter uma demonstração funcional integrada, além das verificações isoladas dos módulos.
+
+Esta revisão documental confrontou esse relato com os arquivos atuais; não executou novamente a demonstração nem as suítes automatizadas. Contagens de testes e resultados anteriores abaixo são registros históricos, não resultados desta revisão.
+
+A geração de endereço observada no teste ainda precisa ser vinculada à configuração/versão utilizada: `ContainerExecutionService.runContainer` configura limites de CPU e RAM, mas não publica portas; os DTOs do master não possuem URL e `ContainerList` não exibe link para a aplicação. Imagem/tag, portas, URL e origem do acesso não foram informadas. Portanto, o sucesso manual relatado está registrado, mas essa etapa de rede ainda não é reproduzível somente com este checkout.
+
+O procedimento atualizado de instalação, login, execução e diagnóstico está no [README principal](README.md#como-rodar-localmente).
+
 ## 1. Objetivo
 
-Este documento registra o trabalho realizado no módulo `cloudbox-agent`, explica como executar o ambiente local e apresenta formas de verificar o funcionamento da coleta de métricas, do registro no orquestrador e do heartbeat.
+Este documento registra o trabalho realizado no módulo `cloudbox-agent`, explica como executar o ambiente local e apresenta formas de verificar o funcionamento da coleta de métricas, do registro no orquestrador do heartbeat e da execução de containers Docker comandada pelo master.
 
 ## 2. Estado inicial e configuração do módulo
 
@@ -11,7 +21,7 @@ O módulo `cloudbox-agent` já estava declarado no `pom.xml` pai e já possuía 
 Foram adicionadas ao POM do agente:
 
 - OSHI 6.6.5, para acesso às informações de hardware e do sistema operacional;
-- docker-java 3.4.1 e seu transporte HTTP Client 5;
+- docker-java e transporte Zerodep, conforme o POM e `DockerClientFactory`;
 - starter REST Client do Spring Boot, usado na comunicação com o master;
 - starter de testes do Spring Boot.
 
@@ -96,11 +106,16 @@ As configurações ficam em `cloudbox-agent/src/main/resources/application.yml` 
 
 | Variável | Padrão | Finalidade |
 |---|---:|---|
-| `CLOUDBOX_MASTER_URL` | `http://localhost:8080` | URL do orquestrador |
+| `CLOUDBOX_MASTER_URL` | `https://cloudbox-production-55f7.up.railway.app/` | URL do orquestrador |
 | `AGENT_NAME` | hostname ou `cloudbox-agent` | Nome do nó |
 | `AGENT_TOKEN_FILE` | `~/.cloudbox/agent-credentials.properties` | Arquivo de credenciais |
 | `AGENT_HEARTBEAT_INTERVAL` | `10000` | Intervalo do heartbeat em ms |
 | `AGENT_HEARTBEAT_INITIAL_DELAY` | `2000` | Espera inicial do heartbeat em ms |
+| `AGENT_COMMAND_POLL_INTERVAL` | `5000` | Intervalo de consulta de comandos em ms |
+| `AGENT_COMMAND_POLL_INITIAL_DELAY` | `3000` | Espera inicial da consulta em ms |
+| `DOCKER_HOST` | Automático por sistema operacional | Socket Unix ou named pipe Windows; pode ser sobrescrito |
+| `DOCKER_CONNECTION_TIMEOUT` / `DOCKER_RESPONSE_TIMEOUT` | `5s` / `30s` | Timeouts do cliente Docker |
+| `DOCKER_VALIDATION_ENABLED` | `false` | Habilita o runner de validação manual Docker |
 | `AGENT_METRICS_INTERVAL` | `5000` | Intervalo do log de métricas em ms |
 | `AGENT_METRICS_INITIAL_DELAY` | `1000` | Espera inicial das métricas em ms |
 
@@ -149,7 +164,7 @@ curl http://localhost:8080/actuator/health
 Em outro terminal:
 
 ```bash
-./mvnw -pl cloudbox-agent spring-boot:run
+CLOUDBOX_MASTER_URL=http://localhost:8080 ./mvnw -pl cloudbox-agent spring-boot:run
 ```
 
 As mensagens esperadas incluem:
@@ -162,16 +177,18 @@ Metricas locais | CPU livre: ...
 
 ## 7. Como conferir a integração
 
-Consultar os nós registrados:
+Obtenha `TOKEN` pelo login descrito no [README](README.md#consultar-a-api-diretamente); as consultas abaixo exigem JWT de usuário.
+
+Obtenha primeiro o JWT de usuário em `TOKEN`, seguindo [Consultar a API diretamente](README.md#consultar-a-api-diretamente). Consultar os nós registrados:
 
 ```bash
-curl -s http://localhost:8080/api/nodes | jq
+curl -s http://localhost:8080/api/nodes -H "Authorization: Bearer $TOKEN" | jq
 ```
 
 Sem `jq`:
 
 ```bash
-curl http://localhost:8080/api/nodes
+curl http://localhost:8080/api/nodes -H "Authorization: Bearer $TOKEN"
 ```
 
 Resultado real obtido durante a validação:
@@ -206,7 +223,7 @@ Executar somente os testes do agente e seus módulos necessários:
 ./mvnw -pl cloudbox-agent -am test
 ```
 
-Na última execução foram aprovados 14 testes no módulo do agente, incluindo:
+No registro anterior de validação foram aprovados 14 testes no módulo do agente, incluindo:
 
 - normalização da temperatura indisponível;
 - limites do percentual de CPU;
@@ -283,3 +300,11 @@ Critério ainda não atendido:
 - a duplicação de nós após reinício, descrita na seção 4, deve ser registrada na avaliação experimental e corrigida antes da rodada definitiva.
 
 Para a avaliação experimental devem ser preservados, em cada máquina, sistema operacional, arquitetura, horário inicial/final, logs do agente, reinicializações, falhas de rede e amostras de `lastHeartbeat` obtidas no master.
+
+## 11. Execução do 2048 e próximos passos
+
+O agente é responsável por baixar a imagem, criar o container com nome `cloudbox-<id da solicitação>`, aplicar limites de CPU/RAM, iniciá-lo e reportar o identificador Docker ao master. Essa execução real foi confirmada pelo relato do 2048.
+
+O ciclo atual consulta comandos a cada 5 s (com espera inicial de 3 s). A confirmação pendente é guardada em memória para evitar repetir uma operação já concluída durante indisponibilidade temporária do master; esse controle não sobrevive a um reinício do agente. Não há monitoramento contínuo do estado de cada container nesse poller: `RUNNING` resulta da confirmação de início e não de um teste HTTP do jogo.
+
+A publicação de portas e o endereço da demonstração ainda precisam ser recuperados. Permanecem pendentes a recuperação da identidade na inicialização, testes prolongados em pelo menos duas máquinas e evidências manuais de parada e remoção. O guia operacional atualizado está no [README](README.md#como-rodar-localmente).

@@ -10,6 +10,7 @@ Este projeto é desenvolvido como Trabalho de Conclusão de Curso (TCC) em Engen
 
 ## Índice
 
+- [Andamento atual](#andamento-atual)
 - [Motivação](#motivação)
 - [Visão geral](#visão-geral)
 - [Arquitetura](#arquitetura)
@@ -29,6 +30,26 @@ Este projeto é desenvolvido como Trabalho de Conclusão de Curso (TCC) em Engen
 - [Licença](#licença)
 
 ---
+
+## Andamento atual
+
+Atualização documental: **14/09/2026**.
+
+O primeiro fluxo completo foi validado pela equipe com o jogo **2048**: o agente cadastrou o computador, enviou seus recursos, o nó apareceu no painel, o CloudBox encaminhou uma solicitação de container e o agente iniciou a aplicação pelo Docker. Segundo o relato da equipe, foi gerado um endereço e o jogo funcionou ao abri-lo em outro navegador. Esse resultado demonstra a integração dos componentes para executar uma aplicação em uma máquina cadastrada e disponibilizá-la pela rede no ambiente do teste.
+
+**Atualização após integração da `main`:** a publicação de portas, o reporte de endpoints e o botão de acesso no dashboard agora estão no código. Consulte [Publicação de portas](docs/acesso-servicos.md) para reproduzir a exposição de uma aplicação. A imagem/tag e a configuração exatas da demonstração do 2048 ainda precisam ser registradas.
+
+| Etapa | Situação e evidência |
+|---|---|
+| Registro, métricas e heartbeat | Implementados; computador visualizado no teste relatado |
+| Agendamento por CPU, RAM, disco e temperatura | Implementado; solicitação encaminhada a um nó no teste |
+| Download e execução via Docker | Implementados; jogo 2048 executado no teste relatado |
+| Login e dashboard com WebSocket | Implementados; painel utilizado na demonstração |
+| Acesso ao jogo pela rede | Validado segundo a equipe; publicação de portas e endpoints agora integrada da `main` |
+| Parar e remover | Implementados; validação manual dessas ações não consta no relato do 2048 |
+| Várias máquinas físicas e execução prolongada | Avaliação experimental pendente |
+
+Detalhamento por módulo: [Master](RELATORIO_CLOUDBOX_MASTER.md), [Agent](RELATORIO_CLOUDBOX_AGENT.md) e [Dashboard](RELATORIO_CLOUDBOX_DASHBOARD.md).
 
 ## Motivação
 
@@ -84,14 +105,14 @@ O sistema é dividido em três componentes principais:
 ### Agente
 
 - Executa como serviço em background em cada máquina do cluster
-- A cada intervalo configurável (padrão: 5–10s), coleta:
+- A cada intervalo configurável (padrão: 10 s para heartbeat), coleta:
   - CPU disponível
   - RAM disponível
   - Armazenamento disponível
   - Temperatura
   - Status geral do nó
 - Envia essas métricas ao orquestrador via **heartbeat** (modelo push) — evita a necessidade de o orquestrador acessar diretamente a máquina, o que facilita o funcionamento atrás de NAT/roteadores domésticos
-- Ao receber um comando de execução, aciona a **Docker Engine API** local para subir o container e reporta o resultado ao orquestrador
+- Consulta comandos pendentes no master a cada 5 s. Ao receber um comando de execução, aciona a **Docker Engine API** local para subir o container e reporta o resultado ao orquestrador
 
 ### Orquestrador
 
@@ -104,7 +125,7 @@ O sistema é dividido em três componentes principais:
 
 Para uma solicitação de execução (ex: 4 GB RAM, 2 CPUs), o agendador segue três etapas:
 
-1. **Filtrar**: elimina nós offline ou sem recurso suficiente (RAM livre < solicitado, CPU livre < solicitado, temperatura acima do limite de segurança)
+1. **Filtrar**: elimina nós offline ou sem recurso suficiente (RAM livre < solicitado, CPU livre < solicitado, disco livre < solicitado, temperatura acima do limite de segurança)
 2. **Pontuar**: entre os nós candidatos, calcula uma pontuação baseada na folga de recursos disponível (estratégia "most available resources", inspirada no agendador padrão do Kubernetes) — evita concentrar carga sempre na mesma máquina
 3. **Alocar**: escolhe o nó com melhor pontuação, envia o comando de execução ao agente correspondente e registra o container no banco de dados com seu status
 
@@ -129,7 +150,7 @@ Para uma solicitação de execução (ex: 4 GB RAM, 2 CPUs), o agendador segue t
 - Agendador com filtro de recursos + pontuação por folga disponível
 - API REST para solicitar execução de containers
 - Dashboard em tempo real (WebSocket) com visão dos nós e containers
-- Ciclo de vida básico de containers: iniciar, parar, ver logs, remover
+- Ciclo de vida básico de containers: iniciar, parar e remover implementados; consulta de logs pelo painel ainda pendente
 - Marcação automática de nó como offline após timeout de heartbeat
 
 ## Trabalhos futuros
@@ -161,8 +182,8 @@ cloudbox/
 ├── cloudbox-agent/       # Agente instalado em cada máquina
 ├── cloudbox-master/      # Orquestrador: registro de nós, agendador, API
 ├── cloudbox-dashboard/   # Interface web (Next.js)
-├── docker-compose.yml    # Ambiente de desenvolvimento com múltiplos nós simulados
-└── docs/                 # Documentação complementar, diagramas, decisões de arquitetura
+├── docker-compose.yml    # PostgreSQL local; agentes são iniciados separadamente
+└── RELATORIO_CLOUDBOX_*.md # Relatórios de implementação por módulo
 ```
 
 ## Como rodar localmente
@@ -172,19 +193,101 @@ dashboard, consulte [Publicação de portas](docs/acesso-servicos.md).
 O [plano de evolução](docs/plano-evolucao-servicos.md) registra a divisão do
 trabalho e as funcionalidades que ainda não foram implementadas.
 
-> Seção a ser detalhada conforme a implementação avança.
+### Pré-requisitos
+
+- Java 21 e acesso às dependências do Maven Wrapper (`mvnw`; no Windows, `mvnw.cmd`).
+- Node.js e npm compatíveis com o Next.js instalado no dashboard.
+- Docker Engine em execução, Compose disponível e permissão do usuário do agente para acessar o Docker. Confira com `docker info` no mesmo ambiente em que iniciará o agente.
+- Portas locais 5432 (PostgreSQL), 8080 (master) e 3000 (painel) disponíveis.
+
+Os comandos abaixo são para Bash, a partir da raiz do projeto. O Compose atual sobe **somente o PostgreSQL**.
+
+### 1. Banco e master
 
 ```bash
-# Clonar o repositório
-git clone https://github.com/<usuario>/cloudbox.git
-cd cloudbox
-
-# Subir o orquestrador e nós simulados via Docker Compose
-docker compose up -d
-
-# Acessar o dashboard
-http://localhost:3000
+docker compose up -d postgres
+docker compose exec postgres pg_isready -U cloudbox -d cloudbox
+export JWT_SECRET="$(openssl rand -base64 48)"
+export ADMIN_EMAIL=admin@seu-dominio.com
+read -rsp 'Senha do administrador: ' ADMIN_PASSWORD
+export ADMIN_PASSWORD
+./mvnw -pl cloudbox-master spring-boot:run
 ```
+
+Em outro terminal, confira `curl http://localhost:8080/actuator/health`. As migrations V1–V9 são aplicadas na inicialização. `JWT_SECRET`, `ADMIN_EMAIL` e `ADMIN_PASSWORD` são obrigatórios; mantenha os mesmos valores nas próximas inicializações. O exemplo usa OpenSSL para gerar o segredo. O banco local usa nome, usuário e senha `cloudbox`.
+
+### 2. Agente no computador que executará os containers
+
+Em outro terminal:
+
+```bash
+export CLOUDBOX_MASTER_URL=http://localhost:8080
+export AGENT_NAME=meu-computador
+./mvnw -pl cloudbox-agent spring-boot:run
+```
+
+Defina a URL explicitamente: o padrão atual do agente aponta para o backend no Railway. Se o master estiver em outra máquina, use o endereço alcançável dessa máquina. `localhost` sempre se refere ao computador onde o processo está rodando.
+
+O agente registra o nó, envia heartbeat a cada 10 s e consulta comandos a cada 5 s. O Docker usa `unix:///var/run/docker.sock` em sistemas Unix ou `npipe:////./pipe/docker_engine` no Windows, salvo configuração de `DOCKER_HOST`. As credenciais são gravadas em `~/.cloudbox/agent-credentials.properties`; atualmente um reinício ainda registra um novo nó, pois a inicialização não recarrega esse arquivo.
+
+### 3. Dashboard e login
+
+Em outro terminal:
+
+```bash
+cd cloudbox-dashboard
+npm ci
+```
+
+Crie ou ajuste `.env.local` com:
+
+```dotenv
+ORCHESTRATOR_URL=http://localhost:8080
+```
+
+O `.env.example` aponta para Railway; para uso local, substitua esse valor. Inicie com `npm run dev` e abra [http://localhost:3000](http://localhost:3000). Entre com o e-mail e a senha definidos em `ADMIN_EMAIL` e `ADMIN_PASSWORD`. A V8 remove a antiga conta padrão insegura; o administrador é inicializado pela configuração do ambiente. Entre em `/login` e confira o nó `ONLINE` na visão geral. Em produção, o cookie de sessão exige HTTPS.
+
+### 4. Solicitar e acompanhar uma aplicação
+
+1. Abra `/containers` e o formulário de novo container.
+2. Informe a imagem Docker e CPU, RAM (MB) e disco (MB), todos os recursos como inteiros positivos. Para acesso pela rede, adicione a porta interna da aplicação, protocolo e exposição HTTP; deixe a porta do host vazia para atribuição automática pelo Docker. Para repetir o 2048, use a mesma imagem/tag da demonstração, ainda não registrada neste repositório.
+3. Envie a solicitação. O master escolhe um nó com recursos suficientes e cria o registro `PENDING`; sem candidato, retorna `409`.
+4. Aguarde a consulta do agente e o download da imagem. A confirmação deve mudar o registro para `RUNNING`; falhas de início podem aparecer como `ERROR` com mensagem.
+5. No computador do agente, use `docker ps --filter name=cloudbox-` para conferir a execução. A CPU e a RAM solicitadas são aplicadas como limites Docker; o disco participa do agendamento, mas ainda não é uma quota Docker.
+6. Para testar o ciclo de vida, clique em **Parar** (`RUNNING → STOPPING → STOPPED`) e depois **Remover** (`REMOVING → REMOVED`). O registro permanece no histórico.
+
+### 5. Conferir o acesso ao 2048 e registrar evidências
+
+No teste relatado, a equipe abriu o endereço gerado em outro navegador e utilizou o jogo. A implementação integrada da `main` agora publica portas no Docker, reporta os endpoints e oferece “Abrir aplicação” no dashboard. Confira o endereço anunciado pelo nó e, se necessário, configure `AGENT_ADVERTISE_ADDRESS` com o IP ou hostname alcançável do host Docker. Siga [Publicação de portas](docs/acesso-servicos.md) para configurar a exposição. `RUNNING` não verifica a resposta HTTP da aplicação. A URL do master no Railway não expõe automaticamente os containers do agente: o cliente precisa alcançar o endereço e a porta publicados no nó.
+
+Registre imagem/tag (preferencialmente digest), commit/branch, nó escolhido, recursos solicitados, IDs do registro e do container Docker, porta interna/externa, mecanismo de exposição e URL utilizada. Anexe data/hora, logs e capturas do painel e do jogo. Abrir outro navegador não comprova, por si só, acesso a partir de outra máquina ou pela internet; registre a origem do acesso.
+
+### Consultar a API diretamente
+
+As consultas e ações de usuário exigem JWT. Com `jq` instalado, no terminal em que `ADMIN_EMAIL` e `ADMIN_PASSWORD` foram definidos:
+
+```bash
+TOKEN=$(curl -fsS http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -n '{email: env.ADMIN_EMAIL, password: env.ADMIN_PASSWORD}')" | jq -r '.token')
+curl -fsS http://localhost:8080/api/nodes -H "Authorization: Bearer $TOKEN"
+curl -fsS http://localhost:8080/api/containers -H "Authorization: Bearer $TOKEN"
+```
+
+O token do agente é diferente do JWT de usuário e autentica heartbeat, consulta de comandos e reporte de status. Os contratos também podem ser consultados em `/swagger-ui/index.html` no master.
+
+### Diagnóstico rápido
+
+| Sintoma | Conferência |
+|---|---|
+| Nó não aparece | Verifique se agente e painel usam o mesmo master e se o registro foi aceito |
+| Nó `OFFLINE` | Confira os logs do heartbeat; timeout padrão de 30 s, verificado a cada 10 s |
+| API retorna `401` | Faça login novamente e envie o JWT nas chamadas diretas |
+| Criação retorna `409` | Confira CPU, RAM e disco livres e temperatura do nó (limite de 75 °C) |
+| Container fica `PENDING` | Confira conexão do agente com Docker/master e logs de consulta de comandos |
+| Container em `ERROR` | Consulte a mensagem no painel e os logs do agente/download da imagem |
+| Painel reconectando | Confira o encaminhamento WebSocket `/ws/*` e a URL do orquestrador; reinicie o Next após alterar o ambiente |
+| Jogo não abre | Confira o endereço anunciado, o endpoint retornado, o binding, o firewall e a rota até o nó |
 
 ## Deploy do backend no Railway
 
@@ -258,13 +361,18 @@ exatos do Desktop, Compose pronto, uso de imagem local e diagnostico de heartbea
 
 ## Roadmap
 
-- [ ] Agente: coleta de métricas (CPU, RAM, disco, temperatura) com OSHI
-- [ ] Orquestrador: registro de nós e heartbeat
-- [ ] Orquestrador: algoritmo de agendamento (filtro + pontuação)
-- [ ] API REST para solicitação de execução de containers
-- [ ] Integração do agente com Docker Engine API
-- [ ] Dashboard: visualização do cluster em tempo real
-- [ ] Dashboard: solicitação de execução de containers
+- [x] Agente: coleta de métricas (CPU, RAM, disco, temperatura) com OSHI
+- [x] Orquestrador: registro de nós e heartbeat
+- [x] Orquestrador: algoritmo de agendamento (filtro + pontuação)
+- [x] API REST para solicitação de execução de containers
+- [x] Integração do agente com Docker Engine API
+- [x] Dashboard: visualização do cluster em tempo real
+- [x] Dashboard: solicitação de execução de containers
+- [x] Primeiro fluxo integrado com 2048 validado pela equipe
+- [x] Integrar publicação de portas Docker e exibição de endpoints no dashboard
+- [ ] Registrar imagem/tag e configuração exatas da demonstração do 2048
+- [ ] Validar manualmente parada e remoção e repetir build de produção do dashboard
+- [ ] Recuperar identidade do agente após reinício e disponibilizar consulta de logs
 - [ ] Avaliação experimental: testes com múltiplas máquinas reais
 - [ ] Documentação final e redação do TCC
 

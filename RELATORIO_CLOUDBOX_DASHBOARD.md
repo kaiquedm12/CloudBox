@@ -1,5 +1,15 @@
 # Relatório de implementação do CloudBox Dashboard
 
+## Atualização de andamento — 14/09/2026
+
+A equipe relatou a conclusão do primeiro fluxo integrado com o **2048**: cadastro do computador pelo agente, envio de recursos, visualização do nó no painel, solicitação e execução do container pelo Docker e abertura do jogo em outro navegador por um endereço de acesso. O projeto passa a ter uma demonstração funcional integrada, além das verificações isoladas dos módulos.
+
+Esta revisão documental confrontou esse relato com os arquivos atuais; não executou novamente a demonstração nem as suítes automatizadas. Contagens de testes e resultados anteriores abaixo são registros históricos, não resultados desta revisão.
+
+A geração de endereço observada no teste ainda precisa ser vinculada à configuração/versão utilizada: `ContainerExecutionService.runContainer` configura limites de CPU e RAM, mas não publica portas; os DTOs do master não possuem URL e `ContainerList` não exibe link para a aplicação. Imagem/tag, portas, URL e origem do acesso não foram informadas. Portanto, o sucesso manual relatado está registrado, mas essa etapa de rede ainda não é reproduzível somente com este checkout.
+
+O procedimento atualizado de instalação, login, execução e diagnóstico está no [README principal](README.md#como-rodar-localmente).
+
 ## 1. Objetivo
 
 Este documento registra a implementação da interface web do CloudBox, com foco na visualização do cluster, listagem de containers, atualizações em tempo real e ações de ciclo de vida.
@@ -67,7 +77,7 @@ Caso a operação Docker seja concluída e o master esteja temporariamente indis
 
 ## 7. Validação realizada
 
-Foram executadas as seguintes verificações:
+O relatório anterior registrou as seguintes verificações (não repetidas nesta revisão):
 
 - `npx tsc --noEmit`: aprovado, sem erros TypeScript;
 - `./mvnw test`: aprovado para master e agente;
@@ -91,5 +101,18 @@ Atendido no código e nos testes automatizados:
 Pendente de validação operacional:
 
 - executar o build de produção do Next em ambiente sem a restrição observada;
-- realizar teste manual com master, agente e Docker reais;
-- confirmar visualmente o fluxo completo em navegador e registrar evidências para o TCC.
+- complementar o teste manual já relatado do 2048 com evidências (logs, capturas, versão e configuração de rede);
+- validar manualmente as ações de parar/remover, não descritas no relato;
+- localizar/integrar a exibição do endereço de acesso, ausente na tabela atual.
+
+## 9. Evolução da interface e uso atual
+
+- `/login`: autenticação por e-mail/senha, com JWT mantido em cookie `httpOnly` pelo Next.
+- `/`: visão geral dos nós, métricas e indicação da conexão em tempo real.
+- `/nodes/[id]`: detalhes do nó, heartbeat e containers alocados.
+- `/containers`: criação com validação Zod de imagem, CPU, RAM e disco; listagem com erros de execução e ações de parar/remover.
+- O disco solicitado também aparece na tabela; a interface oferece seleção de idioma e tema.
+
+O usuário entra, verifica o nó online, solicita o container e acompanha `PENDING → RUNNING`. Esse percurso foi utilizado no primeiro fluxo relatado. O acesso ao jogo em outro navegador faz parte da demonstração informada, mas o componente atual não inclui campo de porta nem botão para abrir a aplicação.
+
+O [README do dashboard](cloudbox-dashboard/README.md) explica a configuração local; o [README principal](README.md#como-rodar-localmente) reúne a preparação do banco, master, agente e o roteiro de reprodução.
