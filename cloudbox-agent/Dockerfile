@@ -24,6 +24,7 @@ WORKDIR /app
 
 COPY pom.xml ./
 COPY cloudbox-agent/pom.xml ./cloudbox-agent/pom.xml
+COPY cloudbox-master/pom.xml ./cloudbox-master/pom.xml
 COPY cloudbox-agent/src ./cloudbox-agent/src
 
 RUN mvn -pl cloudbox-agent -am package -DskipTests
@@ -32,6 +33,13 @@ RUN mvn -pl cloudbox-agent -am package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-COPY --from=build /app/cloudbox-agent/target/cloudbox-agent-0.1.0-SNAPSHOT.jar app.jar
+ARG AGENT_VERSION=dev
+LABEL org.opencontainers.image.title="CloudBox Agent" \
+      org.opencontainers.image.description="Agente de execucao e monitoramento do cluster CloudBox" \
+      org.opencontainers.image.source="https://github.com/kaiquedm12/CloudBox" \
+      org.opencontainers.image.version="${AGENT_VERSION}"
+
+# O curinga desacopla a imagem da versao Maven usada no nome do artefato.
+COPY --from=build /app/cloudbox-agent/target/cloudbox-agent-*.jar app.jar
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

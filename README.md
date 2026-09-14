@@ -23,6 +23,7 @@ Este projeto é desenvolvido como Trabalho de Conclusão de Curso (TCC) em Engen
 - [Trabalhos relacionados](#trabalhos-relacionados)
 - [Estrutura do repositório](#estrutura-do-repositório)
 - [Como rodar localmente](#como-rodar-localmente)
+- [Instalar o agente](#instalar-o-agente)
 - [Roadmap](#roadmap)
 - [Contexto acadêmico](#contexto-acadêmico)
 - [Licença](#licença)
@@ -220,6 +221,36 @@ configure cada agente com a URL criada:
 ```dotenv
 CLOUDBOX_MASTER_URL=https://seu-backend.up.railway.app
 ```
+
+## Instalar o agente
+
+A imagem oficial do agente e publicada no GitHub Container Registry. Para a
+versao 1.0.0:
+
+```bash
+docker pull ghcr.io/kaiquedm12/cloudbox-agent:1.0.0
+```
+
+Em um host Linux, execute o agente com acesso ao Docker do proprio host. A rede
+do host permite que a deteccao automatica anuncie um endereco alcancavel pelos
+usuarios do cluster, e o volume preserva a identidade do no entre reinicios:
+
+```bash
+docker run -d \
+  --name cloudbox-agent \
+  --restart unless-stopped \
+  --network host \
+  -e CLOUDBOX_MASTER_URL=https://cloudbox-production-55f7.up.railway.app/ \
+  -e AGENT_NAME=meu-no \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v cloudbox-agent-data:/root/.cloudbox \
+  ghcr.io/kaiquedm12/cloudbox-agent:1.0.0
+```
+
+Caso o IP detectado automaticamente nao seja acessivel pela rede, defina-o com
+`-e AGENT_ADVERTISE_ADDRESS=192.168.0.10`. O modo `--network host` e especifico
+para Linux; em Windows ou macOS, prefira executar o JAR do agente diretamente
+no host.
 
 ## Roadmap
 
