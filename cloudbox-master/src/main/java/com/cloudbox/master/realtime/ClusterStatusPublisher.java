@@ -28,12 +28,18 @@ public class ClusterStatusPublisher {
 
     public void publishContainerStatusChange(
             UUID containerId, ContainerStatus previousStatus, ContainerStatus currentStatus) {
-        publish("CONTAINER_STATUS_CHANGED", "CONTAINER", containerId, previousStatus, currentStatus);
+        publish("CONTAINER_STATUS_CHANGED", "CONTAINER", containerId, previousStatus, currentStatus, true);
     }
 
     private void publish(String eventType, String resourceType, UUID resourceId, Enum<?> previousStatus,
                          Enum<?> currentStatus) {
-        if (Objects.equals(previousStatus, currentStatus) && !"NODE_METRICS_UPDATED".equals(eventType)) {
+        publish(eventType, resourceType, resourceId, previousStatus, currentStatus, false);
+    }
+
+    private void publish(String eventType, String resourceType, UUID resourceId, Enum<?> previousStatus,
+                         Enum<?> currentStatus, boolean allowUnchangedStatus) {
+        if (Objects.equals(previousStatus, currentStatus) && !allowUnchangedStatus
+                && !"NODE_METRICS_UPDATED".equals(eventType)) {
             return;
         }
 

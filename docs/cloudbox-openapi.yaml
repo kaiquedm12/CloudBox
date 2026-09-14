@@ -15,7 +15,9 @@ info:
 
     Endpoints protegidos por token do agente usam o header
     `Authorization: Bearer {token}` (schema **AgentToken**).
-  version: 0.1.0
+  version: 0.2.0
+security:
+  - BearerAuth: []
 servers:
   - url: http://localhost:8080
     description: Ambiente local (padrão do orquestrador)
@@ -35,8 +37,11 @@ paths:
       description: >
         Registra um nó (agente) informando nome e capacidade total de CPU, RAM e disco.
         Retorna o `id` do nó e o `token` que o agente deve usar nos endpoints protegidos
-        (pending-commands e status de containers).
+        (heartbeat, pending-commands e status de containers). advertiseAddress é o IP
+        ou hostname alcançável do nó, sem esquema ou porta. O registro não verifica
+        a posse desse endereço: restrinja a admissão de nós à rede de confiança.
       operationId: registerNode
+      security: []
       requestBody:
         required: true
         content:
@@ -77,6 +82,8 @@ paths:
         Atualiza os recursos livres e a temperatura informados pelo nó. Usado pelo agente
         para manter o nó marcado como ONLINE.
       operationId: sendHeartbeat
+      security:
+        - AgentToken: []
       parameters:
         - name: id
           in: path
@@ -95,6 +102,8 @@ paths:
       responses:
         '204':
           description: Heartbeat recebido com sucesso
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -136,8 +145,10 @@ paths:
         - Containers
       summary: Cria um container
       description: >
-        Solicita a criação de um container a partir de uma imagem Docker, reservando CPU,
-        memória e disco. O orquestrador agenda o container em um nó com recursos suficientes.
+        Solicita a criação de um container a partir de uma imagem Docker, com CPU,
+        memória e portas opcionais. diskMb é registrado, mas não constitui quota de disco.
+        Portas publicadas exigem um nó elegível com advertiseAddress. INTERNAL não
+        publica porta no host; hostPort omitida permite alocação automática pelo Docker.
       operationId: createContainer
       requestBody:
         required: true
@@ -155,7 +166,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '409':
-          description: Nenhum nó disponível com recursos suficientes
+          description: Nenhum nó elegível disponível (recursos e endereço para publicação)
           content:
             application/json:
               schema:
@@ -188,6 +199,10 @@ paths:
         Permite que o agente reporte o resultado da execução de um container: RUNNING
         (preenchendo `dockerContainerId`), ERROR (preenchendo `errorMessage`) ou STOPPED.
         PENDING não é aceito neste endpoint. Requer o token do nó que possui o container.
+        O agente pode reportar endpoints observados após iniciar. Em RUNNING, endpoints
+        omitidos preservam o valor anterior e uma lista vazia limpa o valor anterior.
+        ERROR e STOPPED removem os endpoints de acesso. O master gera as URLs;
+        o agente não fornece URLs de acesso.
       operationId: updateContainerStatus
       security:
         - AgentToken: []
@@ -257,10 +272,15 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
-    AgentToken:
+    BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT do usuário obtido no login do dashboard.
+    AgentToken:
+      type: http
+      scheme: bearer
+      bearerFormat: UUID
       description: 'Token do nó gerado no registro. Enviar como Authorization: Bearer {token}'
   responses:
     BadRequest:
@@ -316,6 +336,12 @@ components:
           minimum: 0
           description: Capacidade total de disco em MB
           example: 51200
+        advertiseAddress:
+          type: string
+          nullable: true
+          maxLength: 253
+          description: IP literal ou hostname DNS do nó, sem esquema/porta. Não aceita wildcard. Opcional para nós sem publicação.
+          example: 192.168.1.50
     NodeRegisterResponse:
       type: object
       required:
@@ -330,7 +356,7 @@ components:
         token:
           type: string
           description: Token de autenticação do nó (usar nos endpoints protegidos)
-          example: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5YjZjMWY3ZS0xIn0.example
+          example: 67759b0a-dffb-42d8-a6ed-229e30d3dafe
     NodeResponse:
       type: object
       properties:
@@ -341,6 +367,11 @@ components:
         name:
           type: string
           example: rpi-01
+        advertiseAddress:
+          type: string
+          nullable: true
+          description: Endereço anunciado pelo nó para acesso aos serviços publicados.
+          example: 192.168.1.50
         status:
           $ref: '#/components/schemas/NodeStatus'
         cpuTotal:
@@ -447,8 +478,15 @@ components:
           type: integer
           format: int32
           minimum: 1
-          description: Disco reservado em MB
+          description: Disco solicitado em MB, registrado sem garantia de reserva ou quota nesta versão.
           example: 128
+        ports:
+          type: array
+          nullable: true
+          maxItems: 32
+          description: Omitido/null equivale a lista vazia. Não aceita containerPort/protocol duplicados.
+          items:
+            $ref: '#/components/schemas/ServicePort'
     ContainerResponse:
       type: object
       properties:
@@ -493,6 +531,15 @@ components:
           type: string
           format: date-time
           example: 2026-08-18T14:31:00Z
+        ports:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServicePort'
+        endpoints:
+          type: array
+          description: Endpoints derivados dos bindings observados. Pode estar vazio mesmo com processo RUNNING.
+          items:
+            $ref: '#/components/schemas/ContainerEndpoint'
     ContainerStatus:
       type: string
       enum:
@@ -527,6 +574,13 @@ components:
           type: string
           description: Mensagem de erro, preenchida quando o status é ERROR
           example: "falha ao puxar imagem: manifest unknown"
+        endpoints:
+          type: array
+          nullable: true
+          maxItems: 64
+          description: Bindings efetivos obtidos por inspeção Docker. Ausente/null preserva em RUNNING; [] limpa.
+          items:
+            $ref: '#/components/schemas/ObservedEndpoint'
     PendingCommandResponse:
       type: object
       properties:
@@ -556,9 +610,96 @@ components:
         diskMb:
           type: integer
           format: int32
-          description: Disco reservado em MB
+          description: Disco solicitado em MB; não é quota aplicada pelo agente.
           example: 128
+        ports:
+          type: array
+          maxItems: 32
+          items:
+            $ref: '#/components/schemas/ServicePort'
         dockerContainerId:
           type: string
           nullable: true
           description: Identificador usado pelas operações STOP e REMOVE
+    ServicePort:
+      type: object
+      required:
+        - containerPort
+      description: HTTP/TCP exigem protocolo TCP; UDP exige protocolo UDP. INTERNAL não aceita hostPort/bindAddress.
+      properties:
+        containerPort:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          example: 80
+        hostPort:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 65535
+          description: Porta fixa do host; null/omitida solicita uma porta livre ao Docker.
+          example: 32768
+        protocol:
+          type: string
+          enum: [TCP, UDP]
+          default: TCP
+        exposure:
+          type: string
+          enum: [INTERNAL, HTTP, TCP, UDP]
+          default: INTERNAL
+        bindAddress:
+          type: string
+          nullable: true
+          description: IP literal da interface do host. Omitido usa AGENT_PORT_BIND_ADDRESS, cujo padrão é 0.0.0.0.
+          example: 192.168.1.50
+    ObservedEndpoint:
+      type: object
+      required:
+        - containerPort
+        - hostPort
+        - protocol
+      properties:
+        containerPort:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          example: 80
+        hostPort:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          example: 32768
+        protocol:
+          type: string
+          enum: [TCP, UDP]
+        address:
+          type: string
+          nullable: true
+          description: IP do binding observado no Docker. Wildcard é substituído pelo advertiseAddress na resposta pública.
+          example: 0.0.0.0
+    ContainerEndpoint:
+      type: object
+      required:
+        - containerPort
+        - hostPort
+        - protocol
+        - address
+      properties:
+        containerPort:
+          type: integer
+          example: 80
+        hostPort:
+          type: integer
+          example: 32768
+        protocol:
+          type: string
+          enum: [TCP, UDP]
+        address:
+          type: string
+          description: Endereço de acesso derivado da configuração do nó e do binding observado. Um binding loopback só permite acesso local.
+          example: 192.168.1.50
+        url:
+          type: string
+          nullable: true
+          description: URL gerada pelo master somente para exposição HTTP. IPv6 usa colchetes. TCP/UDP retornam null.
+          example: http://192.168.1.50:32768

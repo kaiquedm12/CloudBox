@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n";
 
-export function LogoutButton() {
+export function LogoutButton({ fullWidth = false }: { fullWidth?: boolean }) {
   const { t } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -29,7 +29,7 @@ export function LogoutButton() {
 
   return (
     <button
-      className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
+      className={`rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white sm:px-4 ${fullWidth ? "w-full text-left" : ""}`}
       disabled={isLoggingOut}
       onClick={() => void logout()}
       type="button"

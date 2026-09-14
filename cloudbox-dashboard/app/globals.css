@@ -4,10 +4,24 @@
 
 :root {
   color-scheme: light;
+  --app-background: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f1f5f9;
+  --app-border: #e2e8f0;
+  --app-foreground: #0f172a;
+  --app-muted: #64748b;
+  --app-primary: #2563eb;
 }
 
 :root.dark {
   color-scheme: dark;
+  --app-background: #070b14;
+  --app-surface: #0f172a;
+  --app-surface-muted: #1e293b;
+  --app-border: #334155;
+  --app-foreground: #f8fafc;
+  --app-muted: #94a3b8;
+  --app-primary: #60a5fa;
 }
 
 * {
@@ -15,7 +29,7 @@
 }
 
 html {
-  background: #f8fafc;
+  background: var(--app-background);
   scroll-behavior: smooth;
 }
 
@@ -28,11 +42,26 @@ body {
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  color: var(--app-foreground);
   background-image:
     radial-gradient(circle at 10% 0%, rgb(219 234 254 / 0.45), transparent 28rem),
     linear-gradient(to bottom, #ffffff 0, #f8fafc 22rem);
   background-attachment: fixed;
   transition: background-color 180ms ease, color 180ms ease;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+select {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .dark body {

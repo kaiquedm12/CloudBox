@@ -1,8 +1,13 @@
 package com.cloudbox.master.container.dto;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import com.cloudbox.master.container.ContainerStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 @Schema(description = "Atualização de status reportada pelo agente para um container. O status só aceita RUNNING, ERROR ou STOPPED.")
 public record ContainerStatusUpdateRequest(
@@ -15,5 +20,16 @@ public record ContainerStatusUpdateRequest(
         String dockerContainerId,
         @Schema(description = "Mensagem de erro, preenchida quando o status é ERROR",
                 example = "falha ao puxar imagem: manifest unknown")
-        String errorMessage) {
+        String errorMessage,
+        @Size(max = 64) List<@NotNull @Valid ObservedEndpointRequest> endpoints) {
+
+    public ContainerStatusUpdateRequest {
+        endpoints = endpoints == null
+                ? null
+                : Collections.unmodifiableList(new ArrayList<>(endpoints));
+    }
+
+    public ContainerStatusUpdateRequest(ContainerStatus status, String dockerContainerId, String errorMessage) {
+        this(status, dockerContainerId, errorMessage, null);
+    }
 }

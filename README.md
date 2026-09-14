@@ -24,6 +24,7 @@ Este projeto é desenvolvido como Trabalho de Conclusão de Curso (TCC) em Engen
 - [Trabalhos relacionados](#trabalhos-relacionados)
 - [Estrutura do repositório](#estrutura-do-repositório)
 - [Como rodar localmente](#como-rodar-localmente)
+- [Instalar o agente](#instalar-o-agente)
 - [Roadmap](#roadmap)
 - [Contexto acadêmico](#contexto-acadêmico)
 - [Licença](#licença)
@@ -36,7 +37,7 @@ Atualização documental: **14/09/2026**.
 
 O primeiro fluxo completo foi validado pela equipe com o jogo **2048**: o agente cadastrou o computador, enviou seus recursos, o nó apareceu no painel, o CloudBox encaminhou uma solicitação de container e o agente iniciou a aplicação pelo Docker. Segundo o relato da equipe, foi gerado um endereço e o jogo funcionou ao abri-lo em outro navegador. Esse resultado demonstra a integração dos componentes para executar uma aplicação em uma máquina cadastrada e disponibilizá-la pela rede no ambiente do teste.
 
-**Limite de reprodução neste checkout:** o código inspecionado implementa a execução, mas ainda não contém configuração de publicação de portas, campo de URL na API ou link de acesso na tabela do painel. A imagem/tag, o endereço e o mecanismo de exposição usados na demonstração ainda precisam ser registrados. O resultado manual relatado está preservado; a geração automática de endereço não pode ser reproduzida apenas com os arquivos atuais.
+**Atualização após integração da `main`:** a publicação de portas, o reporte de endpoints e o botão de acesso no dashboard agora estão no código. Consulte [Publicação de portas](docs/acesso-servicos.md) para reproduzir a exposição de uma aplicação. A imagem/tag e a configuração exatas da demonstração do 2048 ainda precisam ser registradas.
 
 | Etapa | Situação e evidência |
 |---|---|
@@ -44,7 +45,7 @@ O primeiro fluxo completo foi validado pela equipe com o jogo **2048**: o agente
 | Agendamento por CPU, RAM, disco e temperatura | Implementado; solicitação encaminhada a um nó no teste |
 | Download e execução via Docker | Implementados; jogo 2048 executado no teste relatado |
 | Login e dashboard com WebSocket | Implementados; painel utilizado na demonstração |
-| Acesso ao jogo pela rede | Validado segundo a equipe; mecanismo de publicação ainda não localizado neste checkout |
+| Acesso ao jogo pela rede | Validado segundo a equipe; publicação de portas e endpoints agora integrada da `main` |
 | Parar e remover | Implementados; validação manual dessas ações não consta no relato do 2048 |
 | Várias máquinas físicas e execução prolongada | Avaliação experimental pendente |
 
@@ -206,10 +207,14 @@ Os comandos abaixo são para Bash, a partir da raiz do projeto. O Compose atual 
 ```bash
 docker compose up -d postgres
 docker compose exec postgres pg_isready -U cloudbox -d cloudbox
+export JWT_SECRET="$(openssl rand -base64 48)"
+export ADMIN_EMAIL=admin@seu-dominio.com
+read -rsp 'Senha do administrador: ' ADMIN_PASSWORD
+export ADMIN_PASSWORD
 ./mvnw -pl cloudbox-master spring-boot:run
 ```
 
-Em outro terminal, confira `curl http://localhost:8080/actuator/health`. As migrations V1–V7 são aplicadas na inicialização. O banco local usa nome, usuário e senha `cloudbox`.
+Em outro terminal, confira `curl http://localhost:8080/actuator/health`. As migrations V1–V9 são aplicadas na inicialização. `JWT_SECRET`, `ADMIN_EMAIL` e `ADMIN_PASSWORD` são obrigatórios; mantenha os mesmos valores nas próximas inicializações. O exemplo usa OpenSSL para gerar o segredo. O banco local usa nome, usuário e senha `cloudbox`.
 
 ### 2. Agente no computador que executará os containers
 
@@ -240,12 +245,12 @@ Crie ou ajuste `.env.local` com:
 ORCHESTRATOR_URL=http://localhost:8080
 ```
 
-O `.env.example` aponta para Railway; para uso local, substitua esse valor. Inicie com `npm run dev` e abra [http://localhost:3000](http://localhost:3000). A migration V7 cria o usuário local `admin@admin.com`, senha `cloudbox`, caso o e-mail ainda não exista. Entre em `/login` e confira o nó `ONLINE` na visão geral. Em produção, o cookie de sessão exige HTTPS.
+O `.env.example` aponta para Railway; para uso local, substitua esse valor. Inicie com `npm run dev` e abra [http://localhost:3000](http://localhost:3000). Entre com o e-mail e a senha definidos em `ADMIN_EMAIL` e `ADMIN_PASSWORD`. A V8 remove a antiga conta padrão insegura; o administrador é inicializado pela configuração do ambiente. Entre em `/login` e confira o nó `ONLINE` na visão geral. Em produção, o cookie de sessão exige HTTPS.
 
 ### 4. Solicitar e acompanhar uma aplicação
 
 1. Abra `/containers` e o formulário de novo container.
-2. Informe a imagem Docker e CPU, RAM (MB) e disco (MB), todos os recursos como inteiros positivos. Para repetir o 2048, use a mesma imagem/tag da demonstração, ainda não registrada neste repositório.
+2. Informe a imagem Docker e CPU, RAM (MB) e disco (MB), todos os recursos como inteiros positivos. Para acesso pela rede, adicione a porta interna da aplicação, protocolo e exposição HTTP; deixe a porta do host vazia para atribuição automática pelo Docker. Para repetir o 2048, use a mesma imagem/tag da demonstração, ainda não registrada neste repositório.
 3. Envie a solicitação. O master escolhe um nó com recursos suficientes e cria o registro `PENDING`; sem candidato, retorna `409`.
 4. Aguarde a consulta do agente e o download da imagem. A confirmação deve mudar o registro para `RUNNING`; falhas de início podem aparecer como `ERROR` com mensagem.
 5. No computador do agente, use `docker ps --filter name=cloudbox-` para conferir a execução. A CPU e a RAM solicitadas são aplicadas como limites Docker; o disco participa do agendamento, mas ainda não é uma quota Docker.
@@ -253,18 +258,18 @@ O `.env.example` aponta para Railway; para uso local, substitua esse valor. Inic
 
 ### 5. Conferir o acesso ao 2048 e registrar evidências
 
-No teste relatado, a equipe abriu o endereço gerado em outro navegador e utilizou o jogo. Para reproduzir essa etapa, é necessário recuperar a configuração de exposição usada no teste: este checkout não publica portas nem fornece uma URL pela API/painel. `RUNNING` confirma a operação de início, mas não verifica a resposta HTTP da aplicação. A URL do master no Railway também não expõe automaticamente os containers executados no computador do agente.
+No teste relatado, a equipe abriu o endereço gerado em outro navegador e utilizou o jogo. A implementação integrada da `main` agora publica portas no Docker, reporta os endpoints e oferece “Abrir aplicação” no dashboard. Confira o endereço anunciado pelo nó e, se necessário, configure `AGENT_ADVERTISE_ADDRESS` com o IP ou hostname alcançável do host Docker. Siga [Publicação de portas](docs/acesso-servicos.md) para configurar a exposição. `RUNNING` não verifica a resposta HTTP da aplicação. A URL do master no Railway não expõe automaticamente os containers do agente: o cliente precisa alcançar o endereço e a porta publicados no nó.
 
 Registre imagem/tag (preferencialmente digest), commit/branch, nó escolhido, recursos solicitados, IDs do registro e do container Docker, porta interna/externa, mecanismo de exposição e URL utilizada. Anexe data/hora, logs e capturas do painel e do jogo. Abrir outro navegador não comprova, por si só, acesso a partir de outra máquina ou pela internet; registre a origem do acesso.
 
 ### Consultar a API diretamente
 
-As consultas e ações de usuário exigem JWT. Com `jq` instalado:
+As consultas e ações de usuário exigem JWT. Com `jq` instalado, no terminal em que `ADMIN_EMAIL` e `ADMIN_PASSWORD` foram definidos:
 
 ```bash
 TOKEN=$(curl -fsS http://localhost:8080/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"admin@admin.com","password":"cloudbox"}' | jq -r '.token')
+  -d "$(jq -n '{email: env.ADMIN_EMAIL, password: env.ADMIN_PASSWORD}')" | jq -r '.token')
 curl -fsS http://localhost:8080/api/nodes -H "Authorization: Bearer $TOKEN"
 curl -fsS http://localhost:8080/api/containers -H "Authorization: Bearer $TOKEN"
 ```
@@ -282,7 +287,7 @@ O token do agente é diferente do JWT de usuário e autentica heartbeat, consult
 | Container fica `PENDING` | Confira conexão do agente com Docker/master e logs de consulta de comandos |
 | Container em `ERROR` | Consulte a mensagem no painel e os logs do agente/download da imagem |
 | Painel reconectando | Confira o encaminhamento WebSocket `/ws/*` e a URL do orquestrador; reinicie o Next após alterar o ambiente |
-| Jogo não abre | Confira a exposição usada na demonstração, conectividade e portas; o código atual não publica uma porta automaticamente |
+| Jogo não abre | Confira o endereço anunciado, o endpoint retornado, o binding, o firewall e a rota até o nó |
 
 ## Deploy do backend no Railway
 
@@ -303,7 +308,15 @@ PGUSER=${{Postgres.PGUSER}}
 PGPASSWORD=${{Postgres.PGPASSWORD}}
 JWT_SECRET=<segredo-base64-com-pelo-menos-32-bytes>
 JWT_EXPIRATION_SECONDS=3600
+ADMIN_EMAIL=admin@seu-dominio.com
+ADMIN_PASSWORD=<senha-forte-com-pelo-menos-12-caracteres>
 ```
+
+`ADMIN_EMAIL`, `ADMIN_PASSWORD` e `JWT_SECRET` sao obrigatorias. O usuario
+legado `admin@admin.com` com senha `cloudbox` e removido pela migration V8 e
+nao deve ser usado. O administrador configurado e criado somente se o e-mail
+ainda nao existir no banco; alterar `ADMIN_PASSWORD` depois disso nao redefine
+a senha de um usuario existente.
 
 Depois do deploy, gere um dominio publico em **Settings > Networking** e
 configure cada agente com a URL criada:
@@ -311,6 +324,40 @@ configure cada agente com a URL criada:
 ```dotenv
 CLOUDBOX_MASTER_URL=https://seu-backend.up.railway.app
 ```
+
+## Instalar o agente
+
+A imagem oficial do agente e publicada no GitHub Container Registry. Para a
+versao 1.0.1:
+
+```bash
+docker pull ghcr.io/kaiquedm12/cloudbox-agent:1.0.1
+```
+
+No Linux, tanto com Docker Engine quanto com Docker Desktop, execute com o
+socket montado e informe o IP do computador acessivel pelos usuarios. Substitua
+`192.168.0.10` pelo seu IP:
+
+```bash
+docker run -d \
+  --name cloudbox-agent \
+  --restart unless-stopped \
+  -e CLOUDBOX_MASTER_URL=https://cloudbox-production-55f7.up.railway.app/ \
+  -e AGENT_NAME=meu-no \
+  -e AGENT_ADVERTISE_ADDRESS=192.168.0.10 \
+  -e AGENT_AUTO_DETECT_ADVERTISE_ADDRESS=false \
+  -e DOCKER_HOST=unix:///var/run/docker.sock \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v cloudbox-agent-data:/root/.cloudbox \
+  ghcr.io/kaiquedm12/cloudbox-agent:1.0.1
+```
+
+Para iniciar pela interface do **Docker Desktop**, preencha os volumes e as
+variaveis em **Images > Run > Optional settings** antes de clicar em Run.
+O socket nao pode ser montado automaticamente pela imagem.
+
+Veja o [guia de instalacao do agente](docs/instalar-agente.md) com os campos
+exatos do Desktop, Compose pronto, uso de imagem local e diagnostico de heartbeat.
 
 ## Roadmap
 
@@ -322,7 +369,8 @@ CLOUDBOX_MASTER_URL=https://seu-backend.up.railway.app
 - [x] Dashboard: visualização do cluster em tempo real
 - [x] Dashboard: solicitação de execução de containers
 - [x] Primeiro fluxo integrado com 2048 validado pela equipe
-- [ ] Consolidar no repositório a publicação de portas/URL usada na demonstração
+- [x] Integrar publicação de portas Docker e exibição de endpoints no dashboard
+- [ ] Registrar imagem/tag e configuração exatas da demonstração do 2048
 - [ ] Validar manualmente parada e remoção e repetir build de produção do dashboard
 - [ ] Recuperar identidade do agente após reinício e disponibilizar consulta de logs
 - [ ] Avaliação experimental: testes com múltiplas máquinas reais

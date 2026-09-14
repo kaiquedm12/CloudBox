@@ -1,0 +1,136 @@
+name: Publicar package e release do CloudBox Agent
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "agent-v*.*.*"
+  workflow_dispatch:
+
+concurrency:
+  group: agent-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/cloudbox-agent
+
+jobs:
+  test-and-publish:
+    name: Testar e publicar imagem
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Executar testes do agente
+        run: ./mvnw -pl cloudbox-agent -am test
+
+      - name: Validar Compose do agente
+        env:
+          AGENT_ADVERTISE_ADDRESS: 192.0.2.10
+        run: docker compose -f cloudbox-agent/compose.yml config --quiet
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Autenticar no GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gerar tags e metadados
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=match,pattern=agent-v(.*),group=1
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/agent-v') }}
+            type=sha,prefix=sha-
+
+      - name: Construir e publicar package
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: cloudbox-agent/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            AGENT_VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: Criar release apos publicar o package
+    needs: test-and-publish
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Criar release com instrucoes e Compose
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          AGENT_VERSION: ${{ needs.test-and-publish.outputs.version }}
+          IMAGE_DIGEST: ${{ needs.test-and-publish.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            echo "Release $RELEASE_TAG ja existe; preservando a publicacao."
+            exit 0
+          fi
+
+          image="$REGISTRY/${IMAGE_NAME,,}"
+          cat > "$RUNNER_TEMP/agent-release.md" <<EOF
+          ## CloudBox Agent $AGENT_VERSION
+
+          Imagem publicada: \`$image:$AGENT_VERSION\`
+          Digest: \`$IMAGE_DIGEST\`
+
+          Baixe a imagem com \`docker pull $image:$AGENT_VERSION\`.
+          No Docker Desktop, configure Volumes e Environment variables conforme o guia anexado.
+          O agent precisa do socket Docker montado em /var/run/docker.sock e do IP do computador em AGENT_ADVERTISE_ADDRESS.
+
+          Para usar o compose.yml anexado, execute:
+
+          \`AGENT_ADVERTISE_ADDRESS=IP_DO_COMPUTADOR CLOUDBOX_AGENT_IMAGE=$image:$AGENT_VERSION docker compose -f compose.yml up -d\`
+
+          Os testes do agent, a validacao do Compose e a publicacao da imagem concluiram antes desta release.
+          EOF
+
+          gh release create "$RELEASE_TAG" \
+            cloudbox-agent/compose.yml docs/instalar-agente.md \
+            --verify-tag \
+            --title "CloudBox Agent $AGENT_VERSION" \
+            --notes-file "$RUNNER_TEMP/agent-release.md" \
+            --generate-notes

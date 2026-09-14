@@ -4,16 +4,15 @@
 # registry (Docker Hub ou GitHub Container Registry) e instalada nas maquinas
 # do cluster via "docker run".
 #
-# Em producao, o container deve ser executado montando o socket do Docker
-# e o filesystem do host para acessar o Docker daemon e o disco local:
+# Execute com o socket do Docker montado. Consulte docs/instalar-agente.md
+# para docker run e os campos de Optional settings no Docker Desktop.
 #
 #   docker run -d \
 #     -v /var/run/docker.sock:/var/run/docker.sock \
-#     -v /:/host/rootfs:ro \
+#     -e AGENT_ADVERTISE_ADDRESS=192.168.1.50 \
 #     <registry>/cloudbox-agent:<tag>
 #
-# A coleta de metricas e a integracao com o Docker Engine usam os recursos
-# montados do host.
+# No Docker Desktop, as metricas refletem o ambiente Linux da VM do Docker.
 #
 # Build a partir da raiz do repositorio:
 #   docker build -f cloudbox-agent/Dockerfile -t cloudbox-agent .
@@ -24,6 +23,7 @@ WORKDIR /app
 
 COPY pom.xml ./
 COPY cloudbox-agent/pom.xml ./cloudbox-agent/pom.xml
+COPY cloudbox-master/pom.xml ./cloudbox-master/pom.xml
 COPY cloudbox-agent/src ./cloudbox-agent/src
 
 RUN mvn -pl cloudbox-agent -am package -DskipTests
@@ -32,6 +32,18 @@ RUN mvn -pl cloudbox-agent -am package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-COPY --from=build /app/cloudbox-agent/target/cloudbox-agent-0.1.0-SNAPSHOT.jar app.jar
+ARG AGENT_VERSION=dev
+LABEL org.opencontainers.image.title="CloudBox Agent" \
+      org.opencontainers.image.description="Agente de execucao e monitoramento do cluster CloudBox" \
+      org.opencontainers.image.source="https://github.com/kaiquedm12/CloudBox" \
+      org.opencontainers.image.version="${AGENT_VERSION}"
+
+# O curinga desacopla a imagem da versao Maven usada no nome do artefato.
+COPY --from=build /app/cloudbox-agent/target/cloudbox-agent-*.jar app.jar
+
+# Em bridge, a deteccao encontra o IP interno do container. Informe o IP do
+# computador; com Docker Engine e --network host, a deteccao pode ser habilitada.
+ENV DOCKER_HOST=unix:///var/run/docker.sock \
+    AGENT_AUTO_DETECT_ADVERTISE_ADDRESS=false
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

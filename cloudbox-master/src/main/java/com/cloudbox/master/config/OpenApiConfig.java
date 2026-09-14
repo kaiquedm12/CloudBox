@@ -17,7 +17,7 @@ public class OpenApiConfig {
                         .title("CloudBox Master API")
                         .description("API do orquestrador CloudBox: registro de nós, heartbeat, agendamento, "
                                 + "comandos pendentes e atualização de status de containers.")
-                        .version("0.1.0"))
+                        .version("0.2.0"))
                 .components(new Components().addSecuritySchemes("AgentToken",
                         new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)

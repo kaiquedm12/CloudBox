@@ -2,6 +2,9 @@ cloudbox:
   agent:
     master-url: ${CLOUDBOX_MASTER_URL:https://cloudbox-production-55f7.up.railway.app/}
     name: ${AGENT_NAME:${HOSTNAME:cloudbox-agent}}
+    advertise-address: ${AGENT_ADVERTISE_ADDRESS:}
+    auto-detect-advertise-address: ${AGENT_AUTO_DETECT_ADVERTISE_ADDRESS:true}
+    port-bind-address: ${AGENT_PORT_BIND_ADDRESS:0.0.0.0}
     token-file: ${AGENT_TOKEN_FILE:${user.home}/.cloudbox/agent-credentials.properties}
     heartbeat-interval: ${AGENT_HEARTBEAT_INTERVAL:10000}
     heartbeat-initial-delay: ${AGENT_HEARTBEAT_INITIAL_DELAY:2000}

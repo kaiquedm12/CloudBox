@@ -13,7 +13,6 @@ import { CONTAINERS_QUERY_KEY } from "@/hooks/use-containers";
 import { NODES_QUERY_KEY } from "@/hooks/use-nodes";
 import type { ClusterNode } from "@/types/cluster-node";
 import type { ClusterStatusMessage } from "@/types/cluster-status";
-import type { CloudContainer } from "@/types/container";
 
 export type RealtimeConnectionStatus =
   | "connecting"
@@ -41,7 +40,8 @@ function isClusterStatusMessage(value: unknown): value is ClusterStatusMessage {
       message.eventType === "NODE_METRICS_UPDATED") &&
       message.resourceType === "NODE" &&
       ["ONLINE", "OFFLINE"].includes(message.currentStatus)) ||
-      (message.eventType === "CONTAINER_STATUS_CHANGED" &&
+      ((message.eventType === "CONTAINER_STATUS_CHANGE" ||
+        message.eventType === "CONTAINER_STATUS_CHANGED") &&
         message.resourceType === "CONTAINER" &&
         ["PENDING", "SCHEDULED", "RUNNING", "STOPPING", "STOPPED", "REMOVING", "REMOVED", "ERROR", "FAILED"].includes(
           message.currentStatus,
@@ -79,15 +79,8 @@ export function ClusterStatusProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      queryClient.setQueryData<CloudContainer[]>(
-        CONTAINERS_QUERY_KEY,
-        (current) =>
-          current?.map((container) =>
-            container.id === message.resourceId
-              ? { ...container, status: message.currentStatus }
-              : container,
-          ),
-      );
+      // O master pode repetir RUNNING para sinalizar mudança de endpoints.
+      // Mantemos o status local, mas sempre invalidamos abaixo para buscar o estado observado.
       void queryClient.invalidateQueries({ queryKey: CONTAINERS_QUERY_KEY });
     }
 
