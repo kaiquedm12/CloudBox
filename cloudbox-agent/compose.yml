@@ -1,0 +1,22 @@
+name: cloudbox-agent
+
+services:
+  agent:
+    image: ${CLOUDBOX_AGENT_IMAGE:-ghcr.io/kaiquedm12/cloudbox-agent:1.0.1}
+    restart: unless-stopped
+    environment:
+      CLOUDBOX_MASTER_URL: ${CLOUDBOX_MASTER_URL:-https://cloudbox-production-55f7.up.railway.app/}
+      AGENT_NAME: ${AGENT_NAME:-meu-pc-linux}
+      AGENT_ADVERTISE_ADDRESS: ${AGENT_ADVERTISE_ADDRESS:?Informe o IP ou DNS do computador acessivel pelos usuarios}
+      AGENT_AUTO_DETECT_ADVERTISE_ADDRESS: "false"
+      DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+      - type: bind
+        source: ${AGENT_DOCKER_SOCKET:-/var/run/docker.sock}
+        target: /var/run/docker.sock
+        bind:
+          create_host_path: false
+      - agent-data:/root/.cloudbox
+
+volumes:
+  agent-data:

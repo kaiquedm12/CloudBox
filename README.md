@@ -225,32 +225,36 @@ CLOUDBOX_MASTER_URL=https://seu-backend.up.railway.app
 ## Instalar o agente
 
 A imagem oficial do agente e publicada no GitHub Container Registry. Para a
-versao 1.0.0:
+versao 1.0.1:
 
 ```bash
-docker pull ghcr.io/kaiquedm12/cloudbox-agent:1.0.0
+docker pull ghcr.io/kaiquedm12/cloudbox-agent:1.0.1
 ```
 
-Em um host Linux, execute o agente com acesso ao Docker do proprio host. A rede
-do host permite que a deteccao automatica anuncie um endereco alcancavel pelos
-usuarios do cluster, e o volume preserva a identidade do no entre reinicios:
+No Linux, tanto com Docker Engine quanto com Docker Desktop, execute com o
+socket montado e informe o IP do computador acessivel pelos usuarios. Substitua
+`192.168.0.10` pelo seu IP:
 
 ```bash
 docker run -d \
   --name cloudbox-agent \
   --restart unless-stopped \
-  --network host \
   -e CLOUDBOX_MASTER_URL=https://cloudbox-production-55f7.up.railway.app/ \
   -e AGENT_NAME=meu-no \
+  -e AGENT_ADVERTISE_ADDRESS=192.168.0.10 \
+  -e AGENT_AUTO_DETECT_ADVERTISE_ADDRESS=false \
+  -e DOCKER_HOST=unix:///var/run/docker.sock \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v cloudbox-agent-data:/root/.cloudbox \
-  ghcr.io/kaiquedm12/cloudbox-agent:1.0.0
+  ghcr.io/kaiquedm12/cloudbox-agent:1.0.1
 ```
 
-Caso o IP detectado automaticamente nao seja acessivel pela rede, defina-o com
-`-e AGENT_ADVERTISE_ADDRESS=192.168.0.10`. O modo `--network host` e especifico
-para Linux; em Windows ou macOS, prefira executar o JAR do agente diretamente
-no host.
+Para iniciar pela interface do **Docker Desktop**, preencha os volumes e as
+variaveis em **Images > Run > Optional settings** antes de clicar em Run.
+O socket nao pode ser montado automaticamente pela imagem.
+
+Veja o [guia de instalacao do agente](docs/instalar-agente.md) com os campos
+exatos do Desktop, Compose pronto, uso de imagem local e diagnostico de heartbeat.
 
 ## Roadmap
 

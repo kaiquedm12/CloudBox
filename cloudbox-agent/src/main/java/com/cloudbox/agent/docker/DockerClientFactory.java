@@ -37,7 +37,35 @@ public class DockerClientFactory {
                 .responseTimeout(properties.getResponseTimeout())
                 .build();
 
-        return DockerClientImpl.getInstance(config, httpClient);
+        DockerClient client = DockerClientImpl.getInstance(config, httpClient);
+        try {
+            verifyConnection(client);
+            return client;
+        } catch (RuntimeException exception) {
+            try {
+                client.close();
+            } catch (Exception closeException) {
+                exception.addSuppressed(closeException);
+            }
+            throw exception;
+        }
+    }
+
+    static void verifyConnection(DockerClient client) {
+        try {
+            client.pingCmd().exec();
+            LOGGER.info("Docker acessivel; agente pronto para registrar o no e enviar heartbeats");
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException(
+                    "Nao foi possivel acessar o Docker. O agente nao sera iniciado. "
+                            + "Ao executar a imagem por docker run ou Docker Desktop, monte o socket: "
+                            + "-v /var/run/docker.sock:/var/run/docker.sock "
+                            + "(Desktop: Optional settings > Volumes). "
+                            + "Defina DOCKER_HOST=unix:///var/run/docker.sock dentro do container. "
+                            + "Confira se o daemon esta ligado, as permissoes do socket e a causa abaixo. "
+                            + "Para outro endpoint, confira DOCKER_HOST e as configuracoes TLS.",
+                    exception);
+        }
     }
 
     static URI resolveDockerHost(String configuredHost, String osName) {
