@@ -187,6 +187,11 @@ cloudbox/
 
 ## Como rodar localmente
 
+Para configurar o endereço do nó, publicar uma porta e acessar o Nginx pelo
+dashboard, consulte [Publicação de portas](docs/acesso-servicos.md).
+O [plano de evolução](docs/plano-evolucao-servicos.md) registra a divisão do
+trabalho e as funcionalidades que ainda não foram implementadas.
+
 ### Pré-requisitos
 
 - Java 21 e acesso às dependências do Maven Wrapper (`mvnw`; no Windows, `mvnw.cmd`).
