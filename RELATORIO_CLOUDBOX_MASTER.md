@@ -1,12 +1,22 @@
 # Relatório de implementação do CloudBox Master
 
+## Atualização de andamento — 14/09/2026
+
+A equipe relatou a conclusão do primeiro fluxo integrado com o **2048**: cadastro do computador pelo agente, envio de recursos, visualização do nó no painel, solicitação e execução do container pelo Docker e abertura do jogo em outro navegador por um endereço de acesso. O projeto passa a ter uma demonstração funcional integrada, além das verificações isoladas dos módulos.
+
+Esta revisão documental confrontou esse relato com os arquivos atuais; não executou novamente a demonstração nem as suítes automatizadas. Contagens de testes e resultados anteriores abaixo são registros históricos, não resultados desta revisão.
+
+A geração de endereço observada no teste ainda precisa ser vinculada à configuração/versão utilizada: `ContainerExecutionService.runContainer` configura limites de CPU e RAM, mas não publica portas; os DTOs do master não possuem URL e `ContainerList` não exibe link para a aplicação. Imagem/tag, portas, URL e origem do acesso não foram informadas. Portanto, o sucesso manual relatado está registrado, mas essa etapa de rede ainda não é reproduzível somente com este checkout.
+
+O procedimento atualizado de instalação, login, execução e diagnóstico está no [README principal](README.md#como-rodar-localmente).
+
 ## 1. Objetivo
 
 Este documento registra o trabalho realizado no módulo `cloudbox-master`, explica como executar o ambiente local e apresenta formas de verificar o funcionamento do registro de nós, do heartbeat, do algoritmo de agendamento e do cadastro de solicitações de containers.
 
 ## 2. Estado inicial e configuração do módulo
 
-O módulo `cloudbox-master` foi criado junto com a estrutura de três módulos do repositório e evoluiu por fases, do setup da infraestrutura base até o algoritmo de agendamento.
+O módulo `cloudbox-master` foi criado junto com a estrutura de três módulos do repositório e evoluiu por fases, do setup da infraestrutura base até o agendamento, a execução assíncrona via agente, a autenticação e a atualização do painel.
 
 O POM do master (`cloudbox-master/pom.xml`) inclui:
 
@@ -27,7 +37,10 @@ O schema do banco `cloudbox` é versionado pelo Flyway em `cloudbox-master/src/m
 - `V1__enable_pgcrypto.sql` — habilita a extensão `pgcrypto`, usada pelo `gen_random_uuid()`;
 - `V2__create_nodes_table.sql` — cria a tabela `nodes`;
 - `V3__create_container_instances_table.sql` — cria a tabela `container_instances`;
-- `V4__add_node_id_to_container_instances.sql` — adiciona `node_id` em `container_instances`, com índice.
+- `V4__add_node_id_to_container_instances.sql` — adiciona `node_id` em `container_instances`, com índice;
+- `V5__add_docker_and_error_to_container_instances.sql` — armazena o identificador Docker e a mensagem de erro;
+- `V6__create_users_table.sql` — cria os usuários para autenticação;
+- `V7__create_default_admin_user.sql` — cria o administrador inicial quando o e-mail ainda não existe.
 
 A entidade `Node` (`node/Node.java`) mapeia a tabela `nodes`: id UUID gerado pelo banco, nome, token único, status (`ONLINE`/`OFFLINE`), CPU/RAM/disco totais e livres, temperatura e `lastHeartbeat`. A entidade `ContainerInstance` (`container/ContainerInstance.java`) mapeia `container_instances`: imagem, CPU, memória, disco, status e timestamps preenchidos automaticamente por `@PrePersist`/`@PreUpdate`.
 
@@ -76,13 +89,13 @@ O `NodeHeartbeatMonitor` roda a cada `cloudbox.heartbeat.check-interval-seconds`
 
 ## 7. Algoritmo de agendamento
 
-O agendador (`SchedulerService.schedule(cpuRequested, ramRequestedMb)`) opera em três etapas:
+O agendador (`SchedulerService.schedule(cpuRequested, ramRequestedMb, diskRequestedMb)`) opera em três etapas:
 
-1. **Filtrar** (`NodeCandidateFilter`): mantém apenas nós `ONLINE`, com CPU livre ≥ solicitada, RAM livre ≥ solicitada e temperatura abaixo de `cloudbox.scheduler.max-temperature-celsius` (padrão: 75 °C). Nós sem sensor de temperatura são aceitos.
-2. **Pontuar** (`NodeScoringStrategy`): calcula, para cada candidato, a folga relativa de RAM e CPU (folga dividida pelo total do recurso) e soma as duas.
+1. **Filtrar** (`NodeCandidateFilter`): mantém apenas nós `ONLINE`, com CPU livre ≥ solicitada, RAM livre ≥ solicitada, disco livre ≥ solicitado e temperatura abaixo de `cloudbox.scheduler.max-temperature-celsius` (padrão: 75 °C). Nós sem sensor de temperatura são aceitos.
+2. **Pontuar** (`NodeScoringStrategy`): calcula, para cada candidato, a folga relativa de RAM, CPU e disco (folga dividida pelo total do recurso) após descontar o pedido e soma as três parcelas.
 3. **Alocar**: escolhe o nó com maior pontuação, com desempate pela RAM livre restante e depois pela CPU livre restante.
 
-Exemplo: para um pedido de 1 CPU e 1024 MB, entre um nó com 4 CPUs/8 GB, um com 8 CPUs/16 GB e um com 2 CPUs/2 GB livres, o agendador escolhe o de 8 CPUs/16 GB.
+A pontuação usa a proporção de recursos restantes em relação ao total de cada nó; ter maior capacidade absoluta não garante a maior pontuação.
 
 ## 8. Cadastro de solicitações de containers
 
@@ -101,9 +114,13 @@ O `ContainerService.create` consulta o agendador. Havendo nó candidato, registr
 
 ```json
 {
-  "error": "Nenhum nó disponível com recursos suficientes no momento"
+  "error": "Nenhum nó disponível com CPU, RAM e disco suficientes no momento"
 }
 ```
+
+O agente busca `GET /api/nodes/{id}/pending-commands` com seu token e executa `START`. Depois envia `POST /api/containers/{id}/status`, com `RUNNING` e `dockerContainerId`, ou `ERROR` e `errorMessage`. Essa confirmação fecha a etapa que antes era descrita apenas como cadastro de solicitação.
+
+Registro de nó é público; heartbeat, comandos e reporte de status validam o token do agente e sua associação ao nó/container. As rotas de usuário exigem JWT obtido em `POST /api/auth/login`.
 
 `GET /api/containers` lista as solicitações cadastradas e é consumido pelo dashboard.
 
@@ -175,7 +192,7 @@ curl http://localhost:8080/actuator/health
 Em outro terminal:
 
 ```bash
-./mvnw -pl cloudbox-agent spring-boot:run
+CLOUDBOX_MASTER_URL=http://localhost:8080 ./mvnw -pl cloudbox-agent spring-boot:run
 ```
 
 As mensagens esperadas incluem:
@@ -188,10 +205,10 @@ Metricas locais | CPU livre: ...
 
 ## 11. Como conferir a integração
 
-Consultar os nós registrados:
+Obtenha primeiro o JWT de usuário em `TOKEN`, seguindo [Consultar a API diretamente](README.md#consultar-a-api-diretamente). Consultar os nós registrados:
 
 ```bash
-curl http://localhost:8080/api/nodes
+curl http://localhost:8080/api/nodes -H "Authorization: Bearer $TOKEN"
 ```
 
 Resultado real obtido durante a validação:
@@ -219,7 +236,7 @@ Para confirmar a permanência como `ONLINE`, consulte novamente depois de dez se
 Para validar o agendamento, envie uma solicitação de container:
 
 ```bash
-curl -X POST http://localhost:8080/api/containers \
+curl -X POST http://localhost:8080/api/containers -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"imageName":"nginx:1.27","cpuCores":1,"memoryMb":512,"diskMb":128}'
 ```
@@ -227,7 +244,7 @@ curl -X POST http://localhost:8080/api/containers \
 Deve retornar `201 Created` com o id da solicitação e o `nodeId` escolhido. A lista pode ser consultada em:
 
 ```bash
-curl http://localhost:8080/api/containers
+curl http://localhost:8080/api/containers -H "Authorization: Bearer $TOKEN"
 ```
 
 ## 12. Testes automatizados
@@ -238,7 +255,7 @@ Executar somente os testes do master e seus módulos necessários:
 ./mvnw -pl cloudbox-master -am test
 ```
 
-Na última execução foram aprovados 41 testes no módulo master. Além dos cenários do agendador, a suíte cobre:
+No registro anterior de validação foram aprovados 41 testes no módulo master. Além dos cenários do agendador, a suíte cobre:
 
 - escolhe o nó com mais recursos livres (scheduler);
 - retorna vazio quando nenhum nó tem recursos suficientes;
@@ -285,7 +302,7 @@ A geração de UUID no banco depende da extensão `pgcrypto`, habilitada pela pr
 ### Agendamento e containers
 
 - o agendador filtra nós offline, sem recursos suficientes ou acima da temperatura limite;
-- a escolha usa a folga relativa de RAM e CPU (estratégia "most available resources");
+- a escolha usa a folga relativa de RAM, CPU e disco (estratégia "most available resources");
 - `POST /api/containers` registra a solicitação com o `nodeId` escolhido e `PENDING`;
 - sem nó disponível, a API responde `409 Conflict` com mensagem explicativa;
 - o agente recebe comandos explícitos de início, parada e remoção;
@@ -299,3 +316,11 @@ A geração de UUID no banco depende da extensão `pgcrypto`, habilitada pela pr
 A página `/containers` consome `GET /api/containers` e apresenta imagem, nó alocado, status, recursos e data de criação. As ações autenticadas de parar e remover atualizam inicialmente o cache do dashboard com a resposta `202 Accepted` e depois são reconciliadas com os eventos WebSocket e uma nova consulta da lista.
 
 Os estados transitórios `STOPPING` e `REMOVING` impedem ações duplicadas enquanto o agente trabalha. Os estados finais `STOPPED` e `REMOVED` registram a confirmação recebida do nó.
+
+## 16. Pendências após o primeiro fluxo completo
+
+- Consolidar publicação de portas e contrato de endereço de acesso usado no teste do 2048.
+- Registrar evidências de escolha entre várias máquinas físicas e execução prolongada.
+- Validar manualmente parada/remoção e recuperação após falhas.
+- O disco solicitado participa do filtro e da pontuação, mas não é limitado pela Docker Engine no agente atual.
+- O agendamento consulta as métricas disponíveis; o fluxo atual não debita reservas ao criar pedidos, o que precisa ser avaliado com solicitações concorrentes.
