@@ -33,11 +33,13 @@ Este projeto é desenvolvido como Trabalho de Conclusão de Curso (TCC) em Engen
 
 ## Andamento atual
 
-Atualização documental: **14/09/2026**.
+Atualização documental: **06/10/2026**.
 
 O primeiro fluxo completo foi validado pela equipe com o jogo **2048**: o agente cadastrou o computador, enviou seus recursos, o nó apareceu no painel, o CloudBox encaminhou uma solicitação de container e o agente iniciou a aplicação pelo Docker. Segundo o relato da equipe, foi gerado um endereço e o jogo funcionou ao abri-lo em outro navegador. Esse resultado demonstra a integração dos componentes para executar uma aplicação em uma máquina cadastrada e disponibilizá-la pela rede no ambiente do teste.
 
 **Atualização após integração da `main`:** a publicação de portas, o reporte de endpoints e o botão de acesso no dashboard agora estão no código. Consulte [Publicação de portas](docs/acesso-servicos.md) para reproduzir a exposição de uma aplicação. A imagem/tag e a configuração exatas da demonstração do 2048 ainda precisam ser registradas.
+
+**Tópico atual — aceite da etapa 1:** há um [roteiro automatizado com ambiente temporário](docs/acesso-servicos.md#validação-automatizada-com-infraestrutura-real) e um [relatório de integração](docs/relatorio-etapa1-integracao.md) com evidências e pendências por responsável. Etapas 2–6 permanecem planejadas; admissão de nós, identidade do agente após reinício e acesso de outra máquina ainda precisam ser concluídos.
 
 | Etapa | Situação e evidência |
 |---|---|

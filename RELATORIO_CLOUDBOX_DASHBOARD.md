@@ -1,12 +1,18 @@
 # Relatório de implementação do CloudBox Dashboard
 
-## Atualização de andamento — 14/09/2026
+## Revisão da etapa 1 — 06/10/2026
+
+O código atual oferece formulário de portas, endpoints para copiar, abertura de URL HTTP(S), indicação de nó offline e atualização por evento RUNNING → RUNNING. Esta revisão conferiu o consumo do contrato por leitura do código; não repetiu build nem navegador. O aceite local pela API não substitui o fluxo completo pelo dashboard.
+
+O tópico desta entrega é o aceite local da etapa 1, conduzido no escopo Maestro (raiz, scripts e documentação). Consulte o [relatório de integração](docs/relatorio-etapa1-integracao.md) para execução com Docker/PostgreSQL reais, evidências, limitações e encaminhamentos. Etapas 2–6 não foram iniciadas. Os registros de setembro abaixo são históricos.
+
+## Histórico de andamento — 14/09/2026
 
 A equipe relatou a conclusão do primeiro fluxo integrado com o **2048**: cadastro do computador pelo agente, envio de recursos, visualização do nó no painel, solicitação e execução do container pelo Docker e abertura do jogo em outro navegador por um endereço de acesso. O projeto passa a ter uma demonstração funcional integrada, além das verificações isoladas dos módulos.
 
 Esta revisão documental confrontou esse relato com os arquivos atuais; não executou novamente a demonstração nem as suítes automatizadas. Contagens de testes e resultados anteriores abaixo são registros históricos, não resultados desta revisão.
 
-A geração de endereço observada no teste ainda precisa ser vinculada à configuração/versão utilizada: `ContainerExecutionService.runContainer` configura limites de CPU e RAM, mas não publica portas; os DTOs do master não possuem URL e `ContainerList` não exibe link para a aplicação. Imagem/tag, portas, URL e origem do acesso não foram informadas. Portanto, o sucesso manual relatado está registrado, mas essa etapa de rede ainda não é reproduzível somente com este checkout.
+Imagem/tag, portas, URL e origem do acesso do teste do 2048 não foram informadas. Essa evidência histórica ainda precisa ser completada. A integração posterior acrescentou publicação de portas, endpoints no master e botão de acesso no dashboard; o roteiro atual está em [acesso-servicos.md](docs/acesso-servicos.md).
 
 O procedimento atualizado de instalação, login, execução e diagnóstico está no [README principal](README.md#como-rodar-localmente).
 
@@ -103,16 +109,16 @@ Pendente de validação operacional:
 - executar o build de produção do Next em ambiente sem a restrição observada;
 - complementar o teste manual já relatado do 2048 com evidências (logs, capturas, versão e configuração de rede);
 - validar manualmente as ações de parar/remover, não descritas no relato;
-- localizar/integrar a exibição do endereço de acesso, ausente na tabela atual.
+- repetir o fluxo visual com backend real e acesso por outra máquina; campos de porta e endpoints já estão integrados.
 
 ## 9. Evolução da interface e uso atual
 
 - `/login`: autenticação por e-mail/senha, com JWT mantido em cookie `httpOnly` pelo Next.
 - `/`: visão geral dos nós, métricas e indicação da conexão em tempo real.
 - `/nodes/[id]`: detalhes do nó, heartbeat e containers alocados.
-- `/containers`: criação com validação Zod de imagem, CPU, RAM e disco; listagem com erros de execução e ações de parar/remover.
+- `/containers`: criação com validação Zod de imagem, CPU, RAM, disco e portas; listagem com endpoints, erros de execução e ações de parar/remover.
 - O disco solicitado também aparece na tabela; a interface oferece seleção de idioma e tema.
 
-O usuário entra, verifica o nó online, solicita o container e acompanha `PENDING → RUNNING`. Esse percurso foi utilizado no primeiro fluxo relatado. O acesso ao jogo em outro navegador faz parte da demonstração informada, mas o componente atual não inclui campo de porta nem botão para abrir a aplicação.
+O usuário entra, verifica o nó online, solicita o container e acompanha `PENDING → RUNNING`. Esse percurso foi utilizado no primeiro fluxo relatado. O componente atual inclui campos de porta e botão para abrir URL HTTP(S) retornada pelo master, desabilitado quando o nó está offline ou o container não está RUNNING. O relato histórico de outro navegador não comprova acesso de outra máquina.
 
 O [README do dashboard](cloudbox-dashboard/README.md) explica a configuração local; o [README principal](README.md#como-rodar-localmente) reúne a preparação do banco, master, agente e o roteiro de reprodução.

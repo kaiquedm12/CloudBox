@@ -84,6 +84,39 @@ portas por container. Se uma porta fixa estiver ocupada, a criação reportará 
 
 ## Validação automatizada com infraestrutura real
 
+Para preparar um ambiente temporário completo no próprio computador:
+
+```bash
+./mvnw -B -pl cloudbox-master,cloudbox-agent -am package
+node scripts/accept-service-ports.mjs
+```
+
+São necessários Java 21, Node.js 22+ e um daemon Docker local acessível por socket
+Unix. O script usa o contexto Docker selecionado ou `DOCKER_HOST`, baixa
+`postgres:16` e `nginx:alpine`, cria PostgreSQL sem volume persistente e inicia os
+JARs locais com credenciais aleatórias e heap limitado. Não usa o Compose/banco
+de desenvolvimento. Portas e serviços do ensaio ficam em `127.0.0.1`.
+
+O roteiro verifica migrations V1–V9, login, heartbeat autenticado, Nginx HTTP com
+porta automática, porta explícita ocupada, ausência de portas, INTERNAL sem binding
+e persistência depois de reiniciar o master. Aguarda recursos elegíveis e mantém
+o limite térmico padrão de 75 °C. Um timeout/falha não conta como aceite dos casos
+seguintes; `evidence.json` registra os casos concluídos e os últimos recursos lidos.
+
+Ao terminar, remove somente os containers e processos criados pelo ensaio. O banco
+temporário em memória é descartado; imagens baixadas, logs e evidências permanecem.
+O diretório privado é informado na saída (`/tmp/cloudbox-ports-*`). Logs e o arquivo
+local de credenciais devem permanecer privados; compartilhe o relatório sanitizado,
+não o diretório inteiro. `SIGINT`/`SIGTERM` solicita encerramento e limpeza; em caso
+de interrupção forçada, confira os UUIDs e a label `com.cloudbox.acceptance-run`
+do `evidence.json` antes de remover qualquer recurso.
+
+Esse ensaio é local, pela API: não comprova o navegador/dashboard, acesso por
+outra máquina, admissão de nós ou restauração da identidade do agente. Resultados
+e pendências: [relatório da etapa 1](relatorio-etapa1-integracao.md).
+
+### Usar um ambiente já iniciado e comprovar acesso remoto
+
 O script abaixo usa um JWT de usuário já obtido no login, cria um Nginx pela API,
 aguarda o reporte do agente e consulta o endpoint HTTP. Não simula nó ou Docker.
 
@@ -100,9 +133,9 @@ node scripts/smoke-service-ports.mjs
 
 Execute de outra máquina para comprovar acesso externo. Cada execução cria um
 container de demonstração e o preserva; o script informa seu ID Docker. Se desejar
-limpá-lo, confira esse ID no host e remova somente esse container. Nesta entrega,
-o fluxo existente não oferece remoção pelo dashboard/API; a limpeza manual no
-Docker também não equivale a uma atualização automática do estado no master.
+limpá-lo, use a ação Remover do dashboard ou `DELETE /api/containers/{id}` com JWT
+e aguarde REMOVED. A API recebe o UUID CloudBox, não o ID Docker. A remoção manual
+no Docker não equivale a uma atualização automática do estado no master.
 
 ## Diagnóstico e limites
 
@@ -118,7 +151,7 @@ Docker também não equivale a uma atualização automática do estado no master
 - Agentes usando o mesmo socket Docker compartilham portas e containers; isso não
   representa um ensaio de cluster com máquinas independentes.
 
-## Verificação realizada nesta entrega
+## Histórico de verificação da entrega de portas
 
 - Java: 62 testes do master e 21 do agente aprovados, incluindo controllers reais
   com repositórios isolados, heartbeat autenticado, seleção de nó com endereço,
@@ -130,9 +163,10 @@ Docker também não equivale a uma atualização automática do estado no master
   recebido; evento RUNNING → RUNNING atualiza a URL; nó offline preserva endereço e
   desabilita acesso. Verificados desktop e celular de 390 px, com API simulada.
 - OpenAPI: YAML válido e referências locais resolvidas.
-- Pendente: executar migrations e testar persistência em PostgreSQL real, publicar
-  o Nginx com um daemon Docker ativo e acessar a partir de outra máquina. O ambiente
-  disponível não tinha os serviços ativos; os testes acima não substituem esse aceite.
+- Na entrega original, migrations/persistência em PostgreSQL real, Nginx com Docker
+  ativo e acesso por outra máquina ficaram pendentes. O ambiente daquela rodada não
+  tinha os serviços ativos. A revisão de 06/10/2026 e o estado atual de cada critério
+  estão no [relatório de integração](relatorio-etapa1-integracao.md).
 
 Contrato: [service-ports-contract.md](service-ports-contract.md).
 Próximas entregas: [plano-evolucao-servicos.md](plano-evolucao-servicos.md).

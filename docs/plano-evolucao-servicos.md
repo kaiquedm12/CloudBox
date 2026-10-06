@@ -1,6 +1,6 @@
 # Evolução do CloudBox: divisão por terminal
 
-Status: etapa 1 implementada no código (portas, advertiseAddress, endpoints e dashboard), com testes Java e verificação da interface. A demonstração com Docker/PostgreSQL reais e acesso por outra máquina permanece pendente por ausência de infraestrutura ativa. Etapas 2–6 continuam planejadas. Guia da entrega: [acesso-servicos.md](acesso-servicos.md).
+Status revisado em 06/10/2026: publicação de portas, advertiseAddress, endpoints e dashboard implementados; sete verificações de aceite local pela API aprovadas com Docker/PostgreSQL reais e 97 testes Java aprovados. A etapa 1 ainda tem pendências de admissão de nós, identidade após reinício, percurso pelo dashboard com backend real e aceite remoto. Evidências no [relatório de integração da etapa 1](relatorio-etapa1-integracao.md). Etapas 2–6 continuam planejadas. Guia da entrega: [acesso-servicos.md](acesso-servicos.md).
 
 ## Responsabilidade e limites de edição
 
@@ -15,17 +15,18 @@ Cada terminal altera sua pasta. Alterações em outra área devem ser encaminhad
 
 Preservar as alterações já existentes em `cloudbox-master/src/main/resources/application.yml`, `.env.example`, `Dockerfile`, `AdminUserInitializer.java` e `V8__remove_insecure_default_admin.sql`. Novas migrations devem usar a próxima versão disponível, sem sobrescrever migrations existentes.
 
-## Base encontrada no código
+## Base encontrada no código — revisão de 06/10/2026
 
-- `ContainerRequest`, `PendingCommandResponse` e `PendingCommand` transportam apenas imagem, CPU, RAM e `diskMb`.
-- `ContainerExecutionService.runContainer` aplica CPU/RAM; não configura portas, volumes ou health check.
-- `NodeRegisterRequest` não contém endereço anunciado.
+- `ContainerRequest`, `PendingCommandResponse` e `PendingCommand` transportam imagem, CPU, RAM, `diskMb` e `ports`; os comandos também suportam START/STOP/REMOVE.
+- `ContainerExecutionService.runContainer` aplica CPU/RAM e bindings Docker, inspeciona portas efetivas e reutiliza containers por nome/labels e identidade da especificação. Volumes e health checks continuam pendentes.
+- `NodeRegisterRequest` contém `advertiseAddress`; a migration V9 persiste endereço, portas desejadas e endpoints. A próxima versão livre neste checkout é V10; conferir novamente antes de criar uma migration.
 - `ContainerStatusReporter` reporta a criação, mas ainda é necessário monitoramento contínuo do estado observado.
-- `ContainerService` persiste o disco solicitado, mas agenda considerando CPU e RAM. Isso não garante reserva ou quota de disco.
+- `ContainerService` agenda considerando CPU, RAM, disco e necessidade de endereço anunciado. O disco participa do filtro e da pontuação, mas não há débito consistente de reservas nem quota Docker.
 - O dashboard usa `types/container.ts`, `lib/container-schema.ts`, `components/create-container-modal.tsx` e `components/container-list.tsx`.
 - `docker-compose.yml` provisiona somente o PostgreSQL do master; os agentes simulados estão comentados.
-- O heartbeat está liberado na configuração de segurança e o controller não valida o token do agente. O registro também é público: definir admissão de nós e validação do endereço anunciado antes de tratá-lo como destino confiável.
-- A revisão do terminal Agent encontrou o Docker CLI, mas o socket do contexto Docker Desktop estava indisponível. O aceite com containers reais depende de um daemon acessível; isso não impede a preparação do código e dos testes isolados.
+- O heartbeat passa pelo `AgentTokenValidator` no controller, embora seja liberado pelo filtro JWT. O registro continua público: falta admissão confiável; validação sintática de `advertiseAddress` não comprova propriedade do destino.
+- `NodeRegistrationService` grava as credenciais, mas não usa `AgentTokenStorage.load()` no startup. A reutilização de containers por labels não resolve, sozinha, a nova identidade de nó após reinício.
+- O Docker Desktop está acessível nesta revisão; a primeira tentativa foi bloqueada pelo sandbox. A disponibilidade atual substitui a limitação de infraestrutura registrada na entrega anterior, sem comprovar acesso de outra máquina.
 
 ## Contrato compartilhado: definir antes da implementação paralela
 

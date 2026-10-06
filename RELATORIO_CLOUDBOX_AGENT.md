@@ -1,12 +1,18 @@
 # Relatório de implementação do CloudBox Agent
 
-## Atualização de andamento — 14/09/2026
+## Revisão da etapa 1 — 06/10/2026
+
+O agente configura bindings, inspeciona as portas efetivas e preserva endpoints durante tentativas de reporte. Nome/labels e identidade da especificação permitem reconhecer containers existentes. A suíte executada nesta revisão aprovou **31 testes**. O startup ainda não restaura as credenciais gravadas: reiniciar o agente pode criar outro nó, o que permanece pendente.
+
+O tópico desta entrega é o aceite local da etapa 1, conduzido no escopo Maestro (raiz, scripts e documentação). Consulte o [relatório de integração](docs/relatorio-etapa1-integracao.md) para execução com Docker/PostgreSQL reais, evidências, limitações e encaminhamentos. Etapas 2–6 não foram iniciadas. Os registros de setembro abaixo são históricos.
+
+## Histórico de andamento — 14/09/2026
 
 A equipe relatou a conclusão do primeiro fluxo integrado com o **2048**: cadastro do computador pelo agente, envio de recursos, visualização do nó no painel, solicitação e execução do container pelo Docker e abertura do jogo em outro navegador por um endereço de acesso. O projeto passa a ter uma demonstração funcional integrada, além das verificações isoladas dos módulos.
 
 Esta revisão documental confrontou esse relato com os arquivos atuais; não executou novamente a demonstração nem as suítes automatizadas. Contagens de testes e resultados anteriores abaixo são registros históricos, não resultados desta revisão.
 
-A geração de endereço observada no teste ainda precisa ser vinculada à configuração/versão utilizada: `ContainerExecutionService.runContainer` configura limites de CPU e RAM, mas não publica portas; os DTOs do master não possuem URL e `ContainerList` não exibe link para a aplicação. Imagem/tag, portas, URL e origem do acesso não foram informadas. Portanto, o sucesso manual relatado está registrado, mas essa etapa de rede ainda não é reproduzível somente com este checkout.
+Imagem/tag, portas, URL e origem do acesso do teste do 2048 não foram informadas. Essa evidência histórica ainda precisa ser completada. A integração posterior acrescentou publicação de portas, endpoints no master e botão de acesso no dashboard; o roteiro atual está em [acesso-servicos.md](docs/acesso-servicos.md).
 
 O procedimento atualizado de instalação, login, execução e diagnóstico está no [README principal](README.md#como-rodar-localmente).
 
@@ -307,4 +313,4 @@ O agente é responsável por baixar a imagem, criar o container com nome `cloudb
 
 O ciclo atual consulta comandos a cada 5 s (com espera inicial de 3 s). A confirmação pendente é guardada em memória para evitar repetir uma operação já concluída durante indisponibilidade temporária do master; esse controle não sobrevive a um reinício do agente. Não há monitoramento contínuo do estado de cada container nesse poller: `RUNNING` resulta da confirmação de início e não de um teste HTTP do jogo.
 
-A publicação de portas e o endereço da demonstração ainda precisam ser recuperados. Permanecem pendentes a recuperação da identidade na inicialização, testes prolongados em pelo menos duas máquinas e evidências manuais de parada e remoção. O guia operacional atualizado está no [README](README.md#como-rodar-localmente).
+A configuração exata e o endereço da demonstração histórica do 2048 ainda precisam ser recuperados. A publicação de portas está implementada no checkout atual. Permanecem pendentes a recuperação da identidade na inicialização, testes prolongados em pelo menos duas máquinas e evidências manuais de parada e remoção. O guia operacional atualizado está no [README](README.md#como-rodar-localmente).

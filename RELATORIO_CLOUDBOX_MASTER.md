@@ -1,12 +1,18 @@
 # Relatório de implementação do CloudBox Master
 
-## Atualização de andamento — 14/09/2026
+## Revisão da etapa 1 — 06/10/2026
+
+O master transporta e persiste `ports`, `endpoints` e `advertiseAddress` (V9), valida token no heartbeat e propriedade do nó no reporte, deriva URLs HTTP e publica alterações de endpoints mesmo mantendo RUNNING. A suíte executada nesta revisão aprovou **66 testes**. O registro de nós continua público; admissão confiável e atualização autenticada do endereço permanecem pendentes.
+
+O tópico desta entrega é o aceite local da etapa 1, conduzido no escopo Maestro (raiz, scripts e documentação). Consulte o [relatório de integração](docs/relatorio-etapa1-integracao.md) para execução com Docker/PostgreSQL reais, evidências, limitações e encaminhamentos. Etapas 2–6 não foram iniciadas. Os registros de setembro abaixo são históricos.
+
+## Histórico de andamento — 14/09/2026
 
 A equipe relatou a conclusão do primeiro fluxo integrado com o **2048**: cadastro do computador pelo agente, envio de recursos, visualização do nó no painel, solicitação e execução do container pelo Docker e abertura do jogo em outro navegador por um endereço de acesso. O projeto passa a ter uma demonstração funcional integrada, além das verificações isoladas dos módulos.
 
 Esta revisão documental confrontou esse relato com os arquivos atuais; não executou novamente a demonstração nem as suítes automatizadas. Contagens de testes e resultados anteriores abaixo são registros históricos, não resultados desta revisão.
 
-A geração de endereço observada no teste ainda precisa ser vinculada à configuração/versão utilizada: `ContainerExecutionService.runContainer` configura limites de CPU e RAM, mas não publica portas; os DTOs do master não possuem URL e `ContainerList` não exibe link para a aplicação. Imagem/tag, portas, URL e origem do acesso não foram informadas. Portanto, o sucesso manual relatado está registrado, mas essa etapa de rede ainda não é reproduzível somente com este checkout.
+Imagem/tag, portas, URL e origem do acesso do teste do 2048 não foram informadas. Essa evidência histórica ainda precisa ser completada. A integração posterior acrescentou publicação de portas, endpoints no master e botão de acesso no dashboard; o roteiro atual está em [acesso-servicos.md](docs/acesso-servicos.md).
 
 O procedimento atualizado de instalação, login, execução e diagnóstico está no [README principal](README.md#como-rodar-localmente).
 
@@ -40,7 +46,9 @@ O schema do banco `cloudbox` é versionado pelo Flyway em `cloudbox-master/src/m
 - `V4__add_node_id_to_container_instances.sql` — adiciona `node_id` em `container_instances`, com índice;
 - `V5__add_docker_and_error_to_container_instances.sql` — armazena o identificador Docker e a mensagem de erro;
 - `V6__create_users_table.sql` — cria os usuários para autenticação;
-- `V7__create_default_admin_user.sql` — cria o administrador inicial quando o e-mail ainda não existe.
+- `V7__create_default_admin_user.sql` — migration histórica do administrador inicial;
+- `V8__remove_insecure_default_admin.sql` — remove a credencial padrão insegura; o bootstrap atual exige `ADMIN_EMAIL` e `ADMIN_PASSWORD`;
+- `V9__add_service_ports_and_node_address.sql` — persiste endereço anunciado, portas desejadas e endpoints observados.
 
 A entidade `Node` (`node/Node.java`) mapeia a tabela `nodes`: id UUID gerado pelo banco, nome, token único, status (`ONLINE`/`OFFLINE`), CPU/RAM/disco totais e livres, temperatura e `lastHeartbeat`. A entidade `ContainerInstance` (`container/ContainerInstance.java`) mapeia `container_instances`: imagem, CPU, memória, disco, status e timestamps preenchidos automaticamente por `@PrePersist`/`@PreUpdate`.
 
@@ -319,7 +327,8 @@ Os estados transitórios `STOPPING` e `REMOVING` impedem ações duplicadas enqu
 
 ## 16. Pendências após o primeiro fluxo completo
 
-- Consolidar publicação de portas e contrato de endereço de acesso usado no teste do 2048.
+- Completar a evidência histórica do endereço usado no teste do 2048; o contrato atual de publicação está em `docs/service-ports-contract.md`.
+- Definir admissão de nós e atualização autenticada de endereço; o registro público atual não comprova confiança no destino anunciado.
 - Registrar evidências de escolha entre várias máquinas físicas e execução prolongada.
 - Validar manualmente parada/remoção e recuperação após falhas.
 - O disco solicitado participa do filtro e da pontuação, mas não é limitado pela Docker Engine no agente atual.
