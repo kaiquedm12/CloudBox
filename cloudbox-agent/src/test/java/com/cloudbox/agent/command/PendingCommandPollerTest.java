@@ -23,6 +23,32 @@ import com.cloudbox.agent.registration.NodeRegistrationService;
 class PendingCommandPollerTest {
 
     @Test
+    void shouldRejectUnsupportedOptionsAndContinueWithConfiguredWorkload() {
+        OrchestratorClient client = Mockito.mock(OrchestratorClient.class);
+        NodeRegistrationService registration = Mockito.mock(NodeRegistrationService.class);
+        ContainerExecutionService execution = Mockito.mock(ContainerExecutionService.class);
+        ContainerStatusReporter reporter = Mockito.mock(ContainerStatusReporter.class);
+        UUID node = UUID.randomUUID(), rejected = UUID.randomUUID(), accepted = UUID.randomUUID();
+        PendingCommand invalid = new PendingCommand(rejected, "START", "nginx:alpine", 1, 64, 128, List.of(), null,
+                null, null, null, null, List.of("SECRET_FILE"), null);
+        PendingCommand valid = new PendingCommand(accepted, "START", "nginx:alpine", 1, 64, 128, List.of(), null,
+                java.util.Map.of("MODE", "test"), List.of("nginx"), List.of("-g", "daemon off;"), null,
+                List.of("ENVIRONMENT", "COMMAND_ARGS"), null);
+        when(registration.ensureRegistered()).thenReturn(new AgentCredentials(node, "token"));
+        when(client.pendingCommands(node, "token")).thenReturn(List.of(invalid, valid));
+        ContainerLaunchResult result = new ContainerLaunchResult("docker-configured", List.of());
+        when(execution.runContainer("nginx:alpine", "cloudbox-" + accepted, accepted.toString(), 1, 64, List.of(), valid.executionOptions()))
+                .thenReturn(result);
+        Mockito.doThrow(new RuntimeException("retry")).doNothing().when(reporter).running(accepted, "token", result);
+        PendingCommandPoller poller = new PendingCommandPoller(client, registration, execution, reporter);
+        poller.poll();
+        poller.poll();
+        verify(reporter, times(2)).error(Mockito.eq(rejected), Mockito.eq("token"), Mockito.any(IllegalArgumentException.class));
+        verify(execution, times(1)).runContainer("nginx:alpine", "cloudbox-" + accepted, accepted.toString(), 1, 64, List.of(), valid.executionOptions());
+        verify(reporter, times(2)).running(accepted, "token", result);
+    }
+
+    @Test
     void shouldExecutePendingCommandAndReportRunning() {
         OrchestratorClient client = Mockito.mock(OrchestratorClient.class);
         NodeRegistrationService registration = Mockito.mock(NodeRegistrationService.class);

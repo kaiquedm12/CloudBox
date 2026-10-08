@@ -17,6 +17,7 @@ import com.cloudbox.agent.client.PortProtocol;
 import com.cloudbox.agent.client.PortSpec;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.ConflictException;
 import com.github.dockerjava.api.exception.NotFoundException;
@@ -26,6 +27,7 @@ import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.InternetProtocol;
 import com.github.dockerjava.api.model.NetworkSettings;
 import com.github.dockerjava.api.model.Ports;
+import com.github.dockerjava.api.model.RestartPolicy;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 
 @Service
@@ -86,8 +88,16 @@ public class ContainerExecutionService {
             int cpuCores,
             int memoryMb,
             List<PortSpec> ports) {
+        return runContainer(image, name, logicalContainerId, cpuCores, memoryMb, ports, ExecutionOptions.DEFAULT);
+    }
+
+    public ContainerLaunchResult runContainer(
+            String image, String name, String logicalContainerId, int cpuCores, int memoryMb,
+            List<PortSpec> ports, ExecutionOptions options) {
+        Objects.requireNonNull(options, "execution options");
         List<ResolvedPort> resolvedPorts = validateAndResolvePorts(ports);
         String specIdentity = specIdentity(image, cpuCores, memoryMb, resolvedPorts);
+        if (!options.isDefault()) specIdentity += "|config-sha256=" + options.fingerprint();
 
         InspectContainerResponse existing = inspectIfPresent(name);
         if (existing != null) {
@@ -97,7 +107,7 @@ public class ContainerExecutionService {
         pullImage(image);
         try {
             return createAndStartContainer(
-                    image, name, logicalContainerId, cpuCores, memoryMb, resolvedPorts, specIdentity);
+                    image, name, logicalContainerId, cpuCores, memoryMb, resolvedPorts, specIdentity, options);
         } catch (ConflictException exception) {
             InspectContainerResponse racedContainer = inspectIfPresent(name);
             if (racedContainer == null) {
@@ -137,7 +147,8 @@ public class ContainerExecutionService {
             int cpuCores,
             int memoryMb,
             List<ResolvedPort> ports,
-            String specIdentity) {
+            String specIdentity,
+            ExecutionOptions options) {
         Ports portBindings = new Ports();
         List<ExposedPort> exposedPorts = new ArrayList<>();
         for (ResolvedPort port : ports) {
@@ -154,16 +165,31 @@ public class ContainerExecutionService {
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withNanoCPUs(cpuCores * 1_000_000_000L)
                 .withMemory(memoryMb * 1024L * 1024L)
-                .withPortBindings(portBindings);
-        CreateContainerResponse response = dockerClient.createContainerCmd(image)
+                .withPortBindings(portBindings)
+                .withRestartPolicy(switch (options.restartPolicy().name()) {
+                    case "ALWAYS" -> RestartPolicy.alwaysRestart();
+                    case "UNLESS_STOPPED" -> RestartPolicy.unlessStoppedRestart();
+                    case "ON_FAILURE" -> RestartPolicy.onFailureRestart(options.restartPolicy().maximumRetryCount());
+                    default -> RestartPolicy.noRestart();
+                });
+        CreateContainerCmd create = dockerClient.createContainerCmd(image)
                 .withName(name)
                 .withLabels(Map.of(
                         MANAGED_LABEL, "true",
                         CONTAINER_ID_LABEL, logicalContainerId,
                         SPEC_LABEL, specIdentity))
                 .withExposedPorts(exposedPorts)
-                .withHostConfig(hostConfig)
-                .exec();
+                .withHostConfig(hostConfig);
+        if (!options.environment().isEmpty()) {
+            create.withEnv(options.environment().entrySet().stream()
+                    .map(entry -> entry.getKey() + "=" + entry.getValue()).toList());
+        }
+        if (options.command() != null) {
+            create.withEntrypoint(options.command());
+            if (options.args() == null) create.withCmd(List.of());
+        }
+        if (options.args() != null) create.withCmd(options.args());
+        CreateContainerResponse response = create.exec();
         String containerId = response.getId();
         startContainer(containerId);
         return inspectLaunchResult(containerId, ports);
