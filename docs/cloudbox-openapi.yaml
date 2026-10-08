@@ -16,6 +16,11 @@ info:
     Endpoints protegidos por token do agente usam o header
     `Authorization: Bearer {token}` (schema **AgentToken**).
   version: 0.2.0
+x-stage2-proposal:
+  status: proposed-not-implemented
+  document: cloudbox-stage2-proposal.openapi.yaml
+  contract: service-configuration-contract.md
+  description: Proposta isolada para revisão dos responsáveis; não acrescenta campos ou rotas à API vigente.
 security:
   - BearerAuth: []
 servers:

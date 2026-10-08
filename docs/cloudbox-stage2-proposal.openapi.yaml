@@ -1,0 +1,241 @@
+openapi: 3.1.0
+info:
+  title: CloudBox — proposta de contrato da etapa 2
+  version: 0.3.0-proposal.1
+  description: |
+    Recorte candidato para revisão do Orquestrador e dos consumidores.
+    NÃO representa funcionalidades disponíveis na API atual do master/dashboard.
+    O agente já consome environment, command/args e restart; os demais campos seguem propostos.
+    A API vigente permanece em cloudbox-openapi.yaml. Nenhuma rota nova deve ser
+    ativada sem os critérios de service-configuration-contract.md.
+x-implementation-status: proposed
+x-review-status: pending-orchestrator-agent-dashboard
+x-json-schema: contracts/service-configuration.schema.json
+security:
+  - BearerAuth: []
+paths:
+  /api/containers:
+    post:
+      operationId: createConfiguredContainer
+      summary: Criação com configuração opcional da etapa 2
+      description: |
+        Campos novos exigem capacidades do agente. SecretRefs e volumes exigem
+        ADMIN nesta proposta de cluster compartilhado; não há isolamento multi-tenant.
+        Campos desconhecidos ou ainda desativados devem produzir 400, nunca ser ignorados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: contracts/service-configuration.schema.json#/$defs/ContainerRequest
+      responses:
+        '201':
+          description: Especificação validada e atribuída a nó elegível
+          content:
+            application/json:
+              schema:
+                $ref: contracts/service-configuration.schema.json#/$defs/ContainerResponse
+        '400':
+          description: Configuração inválida, conflitante ou funcionalidade desativada
+        '401':
+          description: JWT ausente ou inválido
+        '403':
+          description: Referências a segredos/volumes sem permissão ADMIN
+        '409':
+          description: Sem nó capaz, afinidade incompatível, volume em uso ou quota não comprovada
+  /api/nodes/{id}/pending-commands:
+    get:
+      operationId: pollStage2Commands
+      summary: Exemplo do comando START normalizado
+      description: |
+        STOP/REMOVE continuam no contrato vigente. Novas opções só podem ser
+        enviadas a nós admitidos com capabilities compatíveis e identidade estável.
+      security:
+        - AgentToken: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Lista de STARTs da etapa 2; nunca contém valores de segredos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: contracts/service-configuration.schema.json#/$defs/PendingStartCommand
+        '401':
+          description: Token ausente ou não pertence ao nó
+  /api/containers/{id}/status:
+    post:
+      operationId: reportStage2Status
+      summary: Reporte de processo e saúde separados
+      security:
+        - AgentToken: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: contracts/service-configuration.schema.json#/$defs/ContainerStatusUpdateRequest
+      responses:
+        '200':
+          description: Estado observado autorizado e persistido
+          content:
+            application/json:
+              schema:
+                $ref: contracts/service-configuration.schema.json#/$defs/ContainerResponse
+        '400':
+          description: Reporte inválido ou estado de saúde incompatível
+        '401':
+          description: Token ausente, inválido ou de outro nó
+        '409':
+          description: Identificador Docker diverge da instância ativa
+  /api/secrets:
+    post:
+      operationId: createSecret
+      summary: Cadastro imutável de segredo
+      x-required-role: ADMIN
+      description: Exige HTTPS com certificado validado. Valor é entrada writeOnly e nunca retorna neste endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: contracts/service-configuration.schema.json#/$defs/SecretCreateRequest
+      responses:
+        '201':
+          description: Apenas metadados; valor criptografado em repouso
+          content:
+            application/json:
+              schema:
+                $ref: contracts/service-configuration.schema.json#/$defs/SecretMetadata
+        '400':
+          description: Entrada inválida ou transporte sem proteção
+        '401':
+          description: JWT ausente ou inválido
+        '403':
+          description: Usuário sem papel ADMIN
+        '409':
+          description: Nome já cadastrado
+        '503':
+          description: Chave externa indisponível; operação não pode persistir texto aberto
+    get:
+      operationId: listSecretMetadata
+      summary: Lista somente metadados
+      x-required-role: ADMIN
+      responses:
+        '200':
+          description: Sem valores, hashes, ciphertext ou chave criptográfica
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: contracts/service-configuration.schema.json#/$defs/SecretMetadata
+        '401':
+          description: JWT ausente ou inválido
+        '403':
+          description: Usuário sem papel ADMIN
+  /api/containers/{id}/secrets/resolve:
+    post:
+      operationId: resolveAssignedContainerSecrets
+      summary: Resolve somente as referências da especificação atribuída ao nó
+      description: |
+        Exige HTTPS validado, nó admitido e token do nó atribuído. Corpo vazio:
+        o agente não escolhe secretIds. Só enquanto o container está PENDING ou
+        RUNNING. Resposta sensível com Cache-Control no-store; nunca atravessa o
+        proxy público do dashboard. Não exige Docker ID antes de criar o container.
+      security:
+        - AgentToken: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: contracts/service-configuration.schema.json#/$defs/AgentSecretResolutionRequest
+      responses:
+        '200':
+          description: Valores exclusivamente para injeção no container autorizado
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: contracts/service-configuration.schema.json#/$defs/AgentSecretResolutionResponse
+        '401':
+          description: Token ausente, inválido ou de outro nó
+        '403':
+          description: Nó não admitido ou transporte sem proteção
+        '409':
+          description: Container não permite resolução neste estado
+  /api/volumes:
+    post:
+      operationId: createRetainedVolume
+      summary: Cadastra volume lógico retido, inicialmente sem nó
+      x-required-role: ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: contracts/service-configuration.schema.json#/$defs/VolumeCreateRequest
+      responses:
+        '201':
+          description: Metadados UNBOUND; não significa volume Docker ou quota provisionados
+          content:
+            application/json:
+              schema:
+                $ref: contracts/service-configuration.schema.json#/$defs/VolumeMetadata
+        '400':
+          description: Nome, tamanho ou política inválidos
+        '401':
+          description: JWT ausente ou inválido
+        '403':
+          description: Usuário sem papel ADMIN
+        '409':
+          description: Nome duplicado ou garantia REQUIRED não suportada
+    get:
+      operationId: listVolumes
+      summary: Lista volumes lógicos, afinidade e política de retenção
+      x-required-role: ADMIN
+      responses:
+        '200':
+          description: Volumes sem caminhos internos do host
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: contracts/service-configuration.schema.json#/$defs/VolumeMetadata
+        '401':
+          description: JWT ausente ou inválido
+        '403':
+          description: Usuário sem papel ADMIN
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    AgentToken:
+      type: http
+      scheme: bearer
+      bearerFormat: UUID
+  schemas:
+    Stage2Capabilities:
+      $ref: contracts/service-configuration.schema.json#/$defs/Capabilities
