@@ -1,5 +1,11 @@
 # Relatório de implementação do CloudBox Master
 
+## Etapa 2 — configuração básica do agente — 08/10/2026
+
+O contrato candidato da etapa 2 está disponível para revisão. O agente já consome environment, command/args e restart; o master ainda precisa validar/persistir os campos, armazenar capabilities e selecionar nós compatíveis. Nenhum código ou migration do master foi alterado nesta entrega. Não anunciar suporte público apenas porque o agente o implementou.
+
+Evidências, reprodução e próximos passos: [relatório da etapa 2](docs/relatorio-etapa2-configuracao-agente.md). O [protocolo de entregas](docs/protocolo-entregas.md) inclui conferência da main remota antes do trabalho e do push. Os resultados da etapa 1 abaixo são históricos.
+
 ## Revisão da etapa 1 — 06/10/2026
 
 O master transporta e persiste `ports`, `endpoints` e `advertiseAddress` (V9), valida token no heartbeat e propriedade do nó no reporte, deriva URLs HTTP e publica alterações de endpoints mesmo mantendo RUNNING. A suíte executada nesta revisão aprovou **66 testes**. O registro de nós continua público; admissão confiável e atualização autenticada do endereço permanecem pendentes.

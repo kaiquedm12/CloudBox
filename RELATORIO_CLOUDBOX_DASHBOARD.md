@@ -1,5 +1,11 @@
 # Relatório de implementação do CloudBox Dashboard
 
+## Etapa 2 — configuração básica do agente — 08/10/2026
+
+Há exemplos candidatos de entrada, comando e resposta para a etapa 2. O agente implementa o consumo básico, mas o master ainda não recebe/persiste a configuração nova. O dashboard não foi alterado nem habilitou campos sem comportamento no backend; formulário avançado deve seguir a ativação do contrato pelo Orquestrador.
+
+Evidências, reprodução e próximos passos: [relatório da etapa 2](docs/relatorio-etapa2-configuracao-agente.md). O [protocolo de entregas](docs/protocolo-entregas.md) inclui conferência da main remota antes do trabalho e do push. Os resultados da etapa 1 abaixo são históricos.
+
 ## Revisão da etapa 1 — 06/10/2026
 
 O código atual oferece formulário de portas, endpoints para copiar, abertura de URL HTTP(S), indicação de nó offline e atualização por evento RUNNING → RUNNING. Esta revisão conferiu o consumo do contrato por leitura do código; não repetiu build nem navegador. O aceite local pela API não substitui o fluxo completo pelo dashboard.
