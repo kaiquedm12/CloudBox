@@ -1,0 +1,337 @@
+{
+  "legacy": {
+    "schema": "ContainerRequest",
+    "data": {
+      "imageName": "nginx:alpine",
+      "cpuCores": 1,
+      "memoryMb": 128,
+      "diskMb": 32
+    }
+  },
+  "postgresRequest": {
+    "schema": "ContainerRequest",
+    "data": {
+      "imageName": "postgres:16",
+      "cpuCores": 1,
+      "memoryMb": 256,
+      "ephemeralDiskMb": 128,
+      "diskMode": "REQUEST_ONLY",
+      "ports": [
+        {
+          "containerPort": 5432,
+          "protocol": "TCP",
+          "exposure": "INTERNAL"
+        }
+      ],
+      "environment": {
+        "POSTGRES_USER": "cloudbox",
+        "POSTGRES_DB": "demo",
+        "POSTGRES_PASSWORD_FILE": "/run/cloudbox-secrets/postgres-password"
+      },
+      "secretRefs": [
+        {
+          "secretId": "10000000-0000-4000-8000-000000000001",
+          "injection": "FILE",
+          "filePath": "/run/cloudbox-secrets/postgres-password"
+        }
+      ],
+      "volumes": [
+        {
+          "volumeId": "20000000-0000-4000-8000-000000000001",
+          "target": "/var/lib/postgresql/data",
+          "readOnly": false
+        }
+      ],
+      "restartPolicy": {
+        "name": "UNLESS_STOPPED",
+        "maximumRetryCount": 0
+      },
+      "healthCheck": {
+        "type": "EXEC",
+        "exec": [
+          "pg_isready",
+          "-U",
+          "cloudbox",
+          "-d",
+          "demo"
+        ],
+        "intervalSeconds": 10,
+        "timeoutSeconds": 3,
+        "startPeriodSeconds": 30,
+        "retries": 3
+      },
+      "command": null,
+      "args": null
+    }
+  },
+  "postgresCommand": {
+    "schema": "PendingStartCommand",
+    "data": {
+      "containerId": "40000000-0000-4000-8000-000000000001",
+      "action": "START",
+      "imageName": "postgres:16",
+      "cpuCores": 1,
+      "memoryMb": 256,
+      "ephemeralDiskMb": 128,
+      "diskMode": "REQUEST_ONLY",
+      "ports": [
+        {
+          "containerPort": 5432,
+          "protocol": "TCP",
+          "exposure": "INTERNAL",
+          "hostPort": null,
+          "bindAddress": null
+        }
+      ],
+      "environment": {
+        "POSTGRES_USER": "cloudbox",
+        "POSTGRES_DB": "demo",
+        "POSTGRES_PASSWORD_FILE": "/run/cloudbox-secrets/postgres-password"
+      },
+      "secretRefs": [
+        {
+          "secretId": "10000000-0000-4000-8000-000000000001",
+          "injection": "FILE",
+          "filePath": "/run/cloudbox-secrets/postgres-password"
+        }
+      ],
+      "volumes": [
+        {
+          "volumeId": "20000000-0000-4000-8000-000000000001",
+          "target": "/var/lib/postgresql/data",
+          "readOnly": false
+        }
+      ],
+      "restartPolicy": {
+        "name": "UNLESS_STOPPED",
+        "maximumRetryCount": 0
+      },
+      "healthCheck": {
+        "type": "EXEC",
+        "exec": [
+          "pg_isready",
+          "-U",
+          "cloudbox",
+          "-d",
+          "demo"
+        ],
+        "intervalSeconds": 10,
+        "timeoutSeconds": 3,
+        "startPeriodSeconds": 30,
+        "retries": 3
+      },
+      "command": null,
+      "args": null,
+      "diskMb": 128,
+      "dockerContainerId": null,
+      "requiredCapabilities": [
+        "ENVIRONMENT",
+        "SECRET_FILE",
+        "NAMED_VOLUMES",
+        "RESTART_POLICY",
+        "HEALTH_EXEC"
+      ],
+      "resolvedVolumes": [
+        {
+          "volumeId": "20000000-0000-4000-8000-000000000001",
+          "dockerName": "cloudbox-volume-20000000-0000-4000-8000-000000000001",
+          "nodeId": "30000000-0000-4000-8000-000000000001",
+          "volumeSizeMb": 1024,
+          "diskMode": "REQUEST_ONLY",
+          "retentionPolicy": "RETAIN"
+        }
+      ]
+    }
+  },
+  "postgresResponse": {
+    "schema": "ContainerResponse",
+    "data": {
+      "imageName": "postgres:16",
+      "cpuCores": 1,
+      "memoryMb": 256,
+      "ephemeralDiskMb": 128,
+      "diskMode": "REQUEST_ONLY",
+      "ports": [
+        {
+          "containerPort": 5432,
+          "protocol": "TCP",
+          "exposure": "INTERNAL",
+          "hostPort": null,
+          "bindAddress": null
+        }
+      ],
+      "environment": {
+        "POSTGRES_USER": "cloudbox",
+        "POSTGRES_DB": "demo",
+        "POSTGRES_PASSWORD_FILE": "/run/cloudbox-secrets/postgres-password"
+      },
+      "secretRefs": [
+        {
+          "secretId": "10000000-0000-4000-8000-000000000001",
+          "injection": "FILE",
+          "filePath": "/run/cloudbox-secrets/postgres-password"
+        }
+      ],
+      "volumes": [
+        {
+          "volumeId": "20000000-0000-4000-8000-000000000001",
+          "target": "/var/lib/postgresql/data",
+          "readOnly": false
+        }
+      ],
+      "restartPolicy": {
+        "name": "UNLESS_STOPPED",
+        "maximumRetryCount": 0
+      },
+      "healthCheck": {
+        "type": "EXEC",
+        "exec": [
+          "pg_isready",
+          "-U",
+          "cloudbox",
+          "-d",
+          "demo"
+        ],
+        "intervalSeconds": 10,
+        "timeoutSeconds": 3,
+        "startPeriodSeconds": 30,
+        "retries": 3
+      },
+      "command": null,
+      "args": null,
+      "diskMb": 128,
+      "id": "40000000-0000-4000-8000-000000000001",
+      "nodeId": "30000000-0000-4000-8000-000000000001",
+      "status": "RUNNING",
+      "dockerContainerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "errorMessage": null,
+      "createdAt": "2026-10-06T18:00:00Z",
+      "endpoints": [],
+      "health": {
+        "status": "UNHEALTHY",
+        "checkedAt": "2026-10-06T18:01:00Z",
+        "reasonCode": "PROBE_FAILED"
+      }
+    }
+  },
+  "unhealthyReport": {
+    "schema": "ContainerStatusUpdateRequest",
+    "data": {
+      "status": "RUNNING",
+      "dockerContainerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "endpoints": [],
+      "health": {
+        "status": "UNHEALTHY",
+        "checkedAt": "2026-10-06T18:01:00Z",
+        "reasonCode": "PROBE_FAILED"
+      }
+    }
+  },
+  "errorBeforeCreate": {
+    "schema": "ContainerStatusUpdateRequest",
+    "data": {
+      "status": "ERROR",
+      "dockerContainerId": null,
+      "errorMessage": "QUOTA_NOT_SUPPORTED",
+      "health": {
+        "status": "UNKNOWN",
+        "checkedAt": null,
+        "reasonCode": null
+      }
+    }
+  },
+  "httpProbe": {
+    "schema": "ContainerRequest",
+    "data": {
+      "imageName": "nginx:alpine",
+      "cpuCores": 1,
+      "memoryMb": 128,
+      "diskMb": 32,
+      "ports": [
+        {
+          "containerPort": 80,
+          "protocol": "TCP",
+          "exposure": "HTTP"
+        }
+      ],
+      "healthCheck": {
+        "type": "HTTP",
+        "containerPort": 80,
+        "path": "/",
+        "intervalSeconds": 10,
+        "timeoutSeconds": 3,
+        "startPeriodSeconds": 5,
+        "retries": 3
+      }
+    }
+  },
+  "secretCreate": {
+    "schema": "SecretCreateRequest",
+    "data": {
+      "name": "postgres-password",
+      "value": "EXAMPLE_ONLY_NOT_A_REAL_SECRET"
+    }
+  },
+  "secretMetadata": {
+    "schema": "SecretMetadata",
+    "data": {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "name": "postgres-password",
+      "version": 1,
+      "createdAt": "2026-10-06T18:00:00Z"
+    }
+  },
+  "volumeCreate": {
+    "schema": "VolumeCreateRequest",
+    "data": {
+      "name": "postgres-data",
+      "volumeSizeMb": 1024,
+      "diskMode": "REQUEST_ONLY",
+      "retentionPolicy": "RETAIN"
+    }
+  },
+  "volumeMetadata": {
+    "schema": "VolumeMetadata",
+    "data": {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "name": "postgres-data",
+      "nodeId": null,
+      "volumeSizeMb": 1024,
+      "diskMode": "REQUEST_ONLY",
+      "retentionPolicy": "RETAIN",
+      "state": "UNBOUND"
+    }
+  },
+  "capabilities": {
+    "schema": "Capabilities",
+    "data": {
+      "contractVersion": 2,
+      "features": [
+        "ENVIRONMENT",
+        "COMMAND_ARGS",
+        "RESTART_POLICY",
+        "SECRET_ENV",
+        "NAMED_VOLUMES",
+        "HEALTH_EXEC"
+      ],
+      "ephemeralDiskQuota": false,
+      "volumeQuota": false
+    }
+  },
+  "resolveRequest": {
+    "schema": "AgentSecretResolutionRequest",
+    "data": {}
+  },
+  "agentOnlyResolution": {
+    "schema": "AgentSecretResolutionResponse",
+    "data": {
+      "secrets": [
+        {
+          "secretId": "10000000-0000-4000-8000-000000000001",
+          "version": 1,
+          "value": "EXAMPLE_ONLY_NOT_A_REAL_SECRET"
+        }
+      ]
+    }
+  }
+}

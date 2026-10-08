@@ -1,6 +1,6 @@
 # Evolução do CloudBox: divisão por terminal
 
-Status revisado em 06/10/2026: publicação de portas, advertiseAddress, endpoints e dashboard implementados; sete verificações de aceite local pela API aprovadas com Docker/PostgreSQL reais e 97 testes Java aprovados. A etapa 1 ainda tem pendências de admissão de nós, identidade após reinício, percurso pelo dashboard com backend real e aceite remoto. Evidências no [relatório de integração da etapa 1](relatorio-etapa1-integracao.md). Etapas 2–6 continuam planejadas. Guia da entrega: [acesso-servicos.md](acesso-servicos.md).
+Status revisado em 08/10/2026: etapa 1 mantém o aceite local registrado e pendências de admissão, identidade, dashboard com backend real e acesso remoto. A etapa 2 começou com contrato candidato e consumo de environment, command/args e restart no agente; master/dashboard ainda dependem de implementação. Veja os [resultados da etapa 1](relatorio-etapa1-integracao.md) e o [relatório da etapa 2](relatorio-etapa2-configuracao-agente.md). Etapas 3–6 continuam planejadas.
 
 ## Responsabilidade e limites de edição
 
@@ -12,6 +12,8 @@ Status revisado em 06/10/2026: publicação de portas, advertiseAddress, endpoin
 | Maestro | raiz e `docs/` | Coordenar contratos entre os três módulos, atualizar OpenAPI em conjunto com o Orquestrador, integrar entregas, infraestrutura de demonstração, gateway, documentação e testes ponta a ponta. |
 
 Cada terminal altera sua pasta. Alterações em outra área devem ser encaminhadas ao responsável. Maestro mantém os arquivos compartilhados; o Orquestrador especifica as mudanças da API para atualização de `docs/cloudbox-openapi.yaml`. Não são necessários novos terminais.
+
+Seguir o [protocolo de entregas](protocolo-entregas.md): buscar/comparar `origin/main` no início e antes da publicação, manter branch por tópico, commits coesos, relatórios e push. Nesta entrega, o usuário direcionou também a implementação do agente pelo `PendingCommandPoller`; master e dashboard permanecem sem edições de código.
 
 Preservar as alterações já existentes em `cloudbox-master/src/main/resources/application.yml`, `.env.example`, `Dockerfile`, `AdminUserInitializer.java` e `V8__remove_insecure_default_admin.sql`. Novas migrations devem usar a próxima versão disponível, sem sobrescrever migrations existentes.
 
@@ -87,6 +89,8 @@ Arquivos de partida: `docker/ContainerExecutionService`, `client/*`, `registrati
 - Validar a topologia de demonstração: agentes que usam o mesmo Docker socket compartilham daemon e portas e não representam nós fisicamente independentes.
 
 ## Etapa 2 — Serviço configurável e persistente
+
+Primeiro recorte: [contrato candidato](service-configuration-contract.md) e configuração básica do agente. Não considerar a etapa completa nem habilitar na interface antes da persistência/validação do master. Segredos, volumes e probes permanecem propostos.
 
 **Orquestrador:** persistir environment/referências, criar entidade Secret criptografada com chave externa ao banco e acesso autorizado, disponibilizar resolução restrita ao agente responsável, modelar volumes com afinidade ao nó, restart, probes e comando. Receber saúde continuamente.
 

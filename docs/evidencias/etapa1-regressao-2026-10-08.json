@@ -1,0 +1,113 @@
+{
+  "runId": "602f1205-9789-4c8b-9729-ba202e823c05",
+  "startedAt": "2026-10-08T22:27:19.895Z",
+  "scope": "local-loopback",
+  "checks": [
+    {
+      "name": "Migrations V1–V9 e login em PostgreSQL real",
+      "migrations": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    {
+      "name": "Agente real ONLINE; heartbeat sem token rejeitado"
+    },
+    {
+      "name": "Nginx HTTP 200 na porta automática inspecionada no Docker",
+      "endpoint": {
+        "containerPort": 80,
+        "hostPort": 32771,
+        "protocol": "TCP",
+        "address": "127.0.0.1",
+        "url": "http://127.0.0.1:32771"
+      }
+    },
+    {
+      "name": "Porta explícita ocupada produz ERROR, mensagem de binding e nenhum endpoint"
+    },
+    {
+      "name": "Requisição legada sem portas: RUNNING sem publicação no host"
+    },
+    {
+      "name": "Exposição INTERNAL: RUNNING sem publicação no host"
+    },
+    {
+      "name": "Portas, endpoints, erros e endereço persistem após reinício do master"
+    }
+  ],
+  "workloads": [
+    {
+      "name": "HTTP com porta automática",
+      "id": "d09a7196-9700-421f-9709-283a9e2483df",
+      "status": "RUNNING",
+      "dockerId": "b9b8bb5a991714cc6bab5a99bf20db862638a506bce87d55d68c178c8b3a99fd",
+      "endpoints": [
+        {
+          "containerPort": 80,
+          "hostPort": 32771,
+          "protocol": "TCP",
+          "address": "127.0.0.1",
+          "url": "http://127.0.0.1:32771"
+        }
+      ]
+    },
+    {
+      "name": "Porta explícita ocupada",
+      "id": "b3b8a7e9-5dc4-42be-9547-308c3498ae6f",
+      "status": "ERROR",
+      "dockerId": null,
+      "endpoints": []
+    },
+    {
+      "name": "Requisição legada sem portas",
+      "id": "af1cc186-a43f-44d1-8529-20d856e74450",
+      "status": "RUNNING",
+      "dockerId": "0823df8bcba4c125ae31778a00bea1d3c8287ccd8e71a6d551d165767531fccf",
+      "endpoints": []
+    },
+    {
+      "name": "Exposição INTERNAL",
+      "id": "8eeb1e2e-fe52-4ee7-90b1-f1da0d09d3d4",
+      "status": "RUNNING",
+      "dockerId": "6475d05480c159f33a460ec60fc7c02dbfdd21f468fee6359b726e9c6e192c07",
+      "endpoints": []
+    }
+  ],
+  "limitations": [
+    "Sem acesso de outra máquina",
+    "Sem navegador/dashboard",
+    "Sem teste de reinício do agente ou admissão de nós"
+  ],
+  "commit": "d4682cadc1c19a7bf64de497b6b5b1fd3de14d38",
+  "dirtyWorktree": true,
+  "dockerVersion": "29.8.2",
+  "postgres:16": [
+    "postgres@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d"
+  ],
+  "nginx:alpine": [
+    "nginx@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2"
+  ],
+  "databaseId": "1a045836c953e36fae7b54a455dbacf91d90d5739998d3bff986c9a03293ddaa",
+  "nodeId": "bf1c14a9-d2c0-44c7-b90e-1c13079e4c5c",
+  "lastNodeResources": [
+    {
+      "id": "bf1c14a9-d2c0-44c7-b90e-1c13079e4c5c",
+      "status": "ONLINE",
+      "cpuFree": 8,
+      "ramFreeMb": 1608,
+      "diskFreeMb": 170937,
+      "temperatureCelsius": 65
+    }
+  ],
+  "result": "PASS",
+  "cleanup": "PASS",
+  "finishedAt": "2026-10-08T22:30:32.990Z"
+}

@@ -13,6 +13,7 @@ import com.cloudbox.agent.client.OrchestratorClient;
 import com.cloudbox.agent.client.PendingCommand;
 import com.cloudbox.agent.docker.ContainerExecutionService;
 import com.cloudbox.agent.docker.ContainerLaunchResult;
+import com.cloudbox.agent.docker.ExecutionOptions;
 import com.cloudbox.agent.registration.AgentCredentials;
 import com.cloudbox.agent.registration.NodeRegistrationService;
 
@@ -25,7 +26,7 @@ public class PendingCommandPoller {
     private final NodeRegistrationService registrationService;
     private final ContainerExecutionService executionService;
     private final ContainerStatusReporter statusReporter;
-    private final Map<UUID, ContainerLaunchResult> runningAwaitingReport = new ConcurrentHashMap<>();
+    private final Map<UUID, StartedContainer> runningAwaitingReport = new ConcurrentHashMap<>();
     private final Map<UUID, String> actionAwaitingReport = new ConcurrentHashMap<>();
 
     public PendingCommandPoller(
@@ -48,7 +49,11 @@ public class PendingCommandPoller {
             AgentCredentials credentials = registrationService.ensureRegistered();
             for (PendingCommand command : orchestratorClient.pendingCommands(
                     credentials.nodeId(), credentials.token())) {
-                execute(command, credentials.token());
+                try {
+                    execute(command, credentials.token());
+                } catch (RuntimeException exception) {
+                    LOGGER.warn("Falha ao processar comando de container id={}", command.containerId(), exception);
+                }
             }
         } catch (RuntimeException exception) {
             LOGGER.warn("Falha ao consultar comandos pendentes no orquestrador", exception);
@@ -77,19 +82,24 @@ public class PendingCommandPoller {
             throw new IllegalArgumentException("Comando de container desconhecido: " + command.action());
         }
 
-        ContainerLaunchResult alreadyRunning = runningAwaitingReport.get(command.containerId());
-        if (alreadyRunning != null) {
-            reportRunning(command, token, alreadyRunning);
-            return;
-        }
-
         ContainerLaunchResult launchResult;
         try {
+            ExecutionOptions options = command.executionOptions();
+            StartedContainer alreadyRunning = runningAwaitingReport.get(command.containerId());
+            if (alreadyRunning != null) {
+                if (!alreadyRunning.command().equals(command)) {
+                    throw new IllegalStateException("A especificacao mudou enquanto a confirmacao da instancia anterior estava pendente");
+                }
+                reportRunning(command, token, alreadyRunning.result());
+                return;
+            }
             LOGGER.info("Executando container solicitado pelo orquestrador id={} imagem={}",
                     command.containerId(), command.imageName());
-            launchResult = executionService.runContainer(
+            launchResult = options.isDefault() ? executionService.runContainer(
                     command.imageName(), "cloudbox-" + command.containerId(),
-                    command.containerId().toString(), command.cpuCores(), command.memoryMb(), command.ports());
+                    command.containerId().toString(), command.cpuCores(), command.memoryMb(), command.ports())
+                    : executionService.runContainer(command.imageName(), "cloudbox-" + command.containerId(),
+                    command.containerId().toString(), command.cpuCores(), command.memoryMb(), command.ports(), options);
         } catch (RuntimeException exception) {
             LOGGER.error("Falha ao executar container id={}", command.containerId(), exception);
             try {
@@ -101,7 +111,7 @@ public class PendingCommandPoller {
             return;
         }
 
-        runningAwaitingReport.put(command.containerId(), launchResult);
+        runningAwaitingReport.put(command.containerId(), new StartedContainer(command, launchResult));
         reportRunning(command, token, launchResult);
     }
 
@@ -129,7 +139,7 @@ public class PendingCommandPoller {
     private void reportRunning(PendingCommand command, String token, ContainerLaunchResult launchResult) {
         try {
             statusReporter.running(command.containerId(), token, launchResult);
-            runningAwaitingReport.remove(command.containerId(), launchResult);
+            runningAwaitingReport.remove(command.containerId(), new StartedContainer(command, launchResult));
             LOGGER.info("Container iniciado id={} dockerContainerId={}",
                     command.containerId(), launchResult.dockerContainerId());
         } catch (RuntimeException exception) {
@@ -137,4 +147,6 @@ public class PendingCommandPoller {
                     + "o agente tentara novamente", command.containerId(), exception);
         }
     }
+
+    private record StartedContainer(PendingCommand command, ContainerLaunchResult result) { }
 }

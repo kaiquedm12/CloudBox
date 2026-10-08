@@ -1,6 +1,7 @@
 package com.cloudbox.agent.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -24,6 +25,7 @@ class OrchestratorClientTest {
     private final AtomicReference<String> heartbeatBody = new AtomicReference<>();
     private final AtomicReference<String> authorization = new AtomicReference<>();
     private final AtomicReference<String> statusBody = new AtomicReference<>();
+    private final AtomicReference<String> pendingExtraFields = new AtomicReference<>("");
     private final UUID nodeId = UUID.randomUUID();
 
     @BeforeEach
@@ -44,7 +46,7 @@ class OrchestratorClientTest {
                     + "\",\"action\":\"START\",\"imageName\":\"nginx:alpine\",\"cpuCores\":1,"
                     + "\"memoryMb\":64,\"diskMb\":128,\"dockerContainerId\":null,"
                     + "\"ports\":[{\"containerPort\":80,\"hostPort\":null,\"protocol\":\"TCP\","
-                    + "\"exposure\":\"HTTP\",\"bindAddress\":null}]}]");
+                    + "\"exposure\":\"HTTP\",\"bindAddress\":null}]" + pendingExtraFields.get() + "}]");
         });
         server.createContext("/api/containers/" + nodeId + "/status", exchange -> {
             authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
@@ -75,6 +77,8 @@ class OrchestratorClientTest {
                 .contains("\"ramTotalMb\":16384")
                 .contains("\"diskTotalMb\":200000")
                 .contains("\"advertiseAddress\":\"node-a.example.test\"");
+        assertThat(registrationBody.get()).contains("\"contractVersion\":2", "ENVIRONMENT", "COMMAND_ARGS",
+                "RESTART_POLICY", "\"ephemeralDiskQuota\":false", "\"volumeQuota\":false");
     }
 
     @Test
@@ -88,6 +92,7 @@ class OrchestratorClientTest {
                 .contains("\"ramFreeMb\":12000")
                 .contains("\"diskFreeMb\":150000")
                 .contains("\"temperatureCelsius\":null");
+        assertThat(heartbeatBody.get()).contains("\"capabilities\":", "\"contractVersion\":2");
     }
 
     @Test
@@ -97,6 +102,48 @@ class OrchestratorClientTest {
                         java.util.List.of(new PortSpec(
                                 80, null, PortProtocol.TCP, PortExposure.HTTP, null)), null));
         assertThat(authorization.get()).isEqualTo("Bearer agent-token");
+    }
+
+    @Test
+    void shouldReadConfiguredCommandWithoutExpandingArguments() {
+        pendingExtraFields.set(",\"environment\":{\"GREETING\":\"hello=world\"},\"command\":[\"/bin/echo\"],"
+                + "\"args\":[\"$GREETING\",\"hello world\"],\"restartPolicy\":{\"name\":\"ON_FAILURE\",\"maximumRetryCount\":3},"
+                + "\"requiredCapabilities\":[\"ENVIRONMENT\",\"COMMAND_ARGS\",\"RESTART_POLICY\"],"
+                + "\"ephemeralDiskMb\":128,\"diskMode\":\"REQUEST_ONLY\",\"secretRefs\":[],\"volumes\":[],\"healthCheck\":null");
+        PendingCommand command = client.pendingCommands(nodeId, "agent-token").getFirst();
+        var options = command.executionOptions();
+        assertThat(options.environment()).containsEntry("GREETING", "hello=world");
+        assertThat(options.command()).containsExactly("/bin/echo");
+        assertThat(options.args()).containsExactly("$GREETING", "hello world");
+        assertThat(options.restartPolicy()).isEqualTo(new RestartPolicySpec("ON_FAILURE", 3));
+        assertThat(command.additionalOptions()).containsKey("healthCheck");
+    }
+
+    @Test
+    void shouldCaptureAndRejectUnknownOrUnsupportedConfiguration() {
+        for (String unsupported : java.util.List.of(
+                ",\"volumes\":[{\"volumeId\":\"example\"}]",
+                ",\"healthCheck\":{\"type\":\"EXEC\"}",
+                ",\"secretRefs\":[{}]", ",\"network\":{}",
+                ",\"diskMode\":\"REQUIRED\"", ",\"ephemeralDiskMb\":129",
+                ",\"unexpectedField\":\"must-not-be-ignored\"")) {
+            pendingExtraFields.set(unsupported);
+            PendingCommand command = client.pendingCommands(nodeId, "agent-token").getFirst();
+            assertThatThrownBy(command::executionOptions).isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("UNSUPPORTED_SERVICE_OPTION");
+        }
+    }
+
+    @Test
+    void shouldNotCoerceConfigurationValuesOrIgnoreRestartTypos() {
+        for (String invalid : java.util.List.of(",\"environment\":{\"X\":123}", ",\"command\":[123]", ",\"args\":[true]")) {
+            pendingExtraFields.set(invalid);
+            assertThatThrownBy(() -> client.pendingCommands(nodeId, "agent-token")).isInstanceOf(RuntimeException.class);
+        }
+        pendingExtraFields.set(",\"restartPolicy\":{\"name\":\"ON_FAILURE\",\"maxRetries\":3}");
+        PendingCommand command = client.pendingCommands(nodeId, "agent-token").getFirst();
+        assertThatThrownBy(command::executionOptions).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("restartPolicy");
     }
 
     @Test

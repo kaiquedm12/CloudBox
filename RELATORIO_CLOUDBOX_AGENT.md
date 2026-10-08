@@ -1,5 +1,11 @@
 # Relatório de implementação do CloudBox Agent
 
+## Etapa 2 — configuração básica do agente — 08/10/2026
+
+O `PendingCommandPoller` agora valida e encaminha environment, command/args e restart ao Docker. Registro/heartbeat anunciam somente ENVIRONMENT, COMMAND_ARGS e RESTART_POLICY; funcionalidades restantes são rejeitadas antes da criação. Labels usam fingerprint da configuração, preservando a identidade legada nos casos sem opções. Foram aprovados 46 testes do agente, incluindo quatro cenários de argv em Docker real dentro de um teste opt-in.
+
+Evidências, reprodução e próximos passos: [relatório da etapa 2](docs/relatorio-etapa2-configuracao-agente.md). O [protocolo de entregas](docs/protocolo-entregas.md) inclui conferência da main remota antes do trabalho e do push. Os resultados da etapa 1 abaixo são históricos.
+
 ## Revisão da etapa 1 — 06/10/2026
 
 O agente configura bindings, inspeciona as portas efetivas e preserva endpoints durante tentativas de reporte. Nome/labels e identidade da especificação permitem reconhecer containers existentes. A suíte executada nesta revisão aprovou **31 testes**. O startup ainda não restaura as credenciais gravadas: reiniciar o agente pode criar outro nó, o que permanece pendente.

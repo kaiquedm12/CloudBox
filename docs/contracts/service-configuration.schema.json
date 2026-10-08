@@ -1,0 +1,1238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cloudbox:stage2:proposal:1",
+  "title": "CloudBox etapa 2 — proposta, não implementada no runtime",
+  "description": "Esquemas candidatos para revisão do Orquestrador. Restrições semânticas e critérios de ativação em service-configuration-contract.md.",
+  "$defs": {
+    "ServicePort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "containerPort"
+      ],
+      "properties": {
+        "containerPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "hostPort": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protocol": {
+          "enum": [
+            "TCP",
+            "UDP"
+          ],
+          "default": "TCP"
+        },
+        "exposure": {
+          "enum": [
+            "INTERNAL",
+            "HTTP",
+            "TCP",
+            "UDP"
+          ],
+          "default": "INTERNAL"
+        },
+        "bindAddress": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 45,
+              "pattern": "^[^\\u0000]*$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "SecretRef": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "secretId",
+            "injection",
+            "envName"
+          ],
+          "properties": {
+            "secretId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "injection": {
+              "const": "ENV"
+            },
+            "envName": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "secretId",
+            "injection",
+            "filePath"
+          ],
+          "properties": {
+            "secretId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "injection": {
+              "const": "FILE"
+            },
+            "filePath": {
+              "type": "string",
+              "pattern": "^/run/cloudbox-secrets/[A-Za-z0-9_-]{1,128}$"
+            }
+          }
+        }
+      ]
+    },
+    "VolumeMount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "volumeId",
+        "target"
+      ],
+      "properties": {
+        "volumeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "target": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 1024,
+          "pattern": "^/[^\\u0000]+$"
+        },
+        "readOnly": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "RestartPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "NONE",
+            "ALWAYS",
+            "UNLESS_STOPPED",
+            "ON_FAILURE"
+          ],
+          "default": "NONE"
+        },
+        "maximumRetryCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 0
+        }
+      }
+    },
+    "HealthCheck": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "exec"
+          ],
+          "properties": {
+            "type": {
+              "const": "EXEC"
+            },
+            "exec": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "maxItems": 64,
+              "minItems": 1
+            },
+            "intervalSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3600,
+              "default": 30
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300,
+              "default": 5
+            },
+            "startPeriodSeconds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3600,
+              "default": 0
+            },
+            "retries": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 3
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "containerPort",
+            "path"
+          ],
+          "properties": {
+            "type": {
+              "const": "HTTP"
+            },
+            "containerPort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^/(?!/)[^\\u0000-\\u0020#\\\\]*$"
+            },
+            "intervalSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3600,
+              "default": 30
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300,
+              "default": 5
+            },
+            "startPeriodSeconds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3600,
+              "default": 0
+            },
+            "retries": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 3
+            }
+          }
+        }
+      ]
+    },
+    "HealthObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "checkedAt",
+        "reasonCode"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "UNKNOWN",
+            "STARTING",
+            "HEALTHY",
+            "UNHEALTHY"
+          ]
+        },
+        "checkedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasonCode": {
+          "anyOf": [
+            {
+              "enum": [
+                "PROBE_FAILED",
+                "PROBE_TIMEOUT",
+                "PROCESS_NOT_RUNNING",
+                "PROBE_UNREACHABLE"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractVersion",
+        "features",
+        "ephemeralDiskQuota",
+        "volumeQuota"
+      ],
+      "properties": {
+        "contractVersion": {
+          "const": 2
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "ENVIRONMENT",
+              "COMMAND_ARGS",
+              "RESTART_POLICY",
+              "SECRET_ENV",
+              "SECRET_FILE",
+              "NAMED_VOLUMES",
+              "HEALTH_EXEC",
+              "HEALTH_HTTP"
+            ]
+          },
+          "maxItems": 8,
+          "uniqueItems": true
+        },
+        "ephemeralDiskQuota": {
+          "type": "boolean",
+          "default": false
+        },
+        "volumeQuota": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "SecretCreateRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,62}$"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536,
+          "pattern": "^[^\\u0000]*$",
+          "writeOnly": true
+        }
+      }
+    },
+    "SecretMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "version",
+        "createdAt"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,62}$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "VolumeCreateRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,62}$"
+        },
+        "volumeSizeMb": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diskMode": {
+          "enum": [
+            "REQUEST_ONLY",
+            "REQUIRED"
+          ],
+          "default": "REQUEST_ONLY"
+        },
+        "retentionPolicy": {
+          "const": "RETAIN",
+          "default": "RETAIN"
+        }
+      }
+    },
+    "VolumeMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "nodeId",
+        "volumeSizeMb",
+        "diskMode",
+        "retentionPolicy",
+        "state"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,62}$"
+        },
+        "nodeId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "volumeSizeMb": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diskMode": {
+          "enum": [
+            "REQUEST_ONLY",
+            "REQUIRED"
+          ]
+        },
+        "retentionPolicy": {
+          "const": "RETAIN"
+        },
+        "state": {
+          "enum": [
+            "UNBOUND",
+            "BOUND",
+            "ERROR"
+          ]
+        }
+      }
+    },
+    "AgentSecretResolutionRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "AgentSecretResolutionResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secrets"
+      ],
+      "properties": {
+        "secrets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "secretId",
+              "version",
+              "value"
+            ],
+            "properties": {
+              "secretId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536,
+                "pattern": "^[^\\u0000]*$"
+              }
+            }
+          },
+          "maxItems": 32
+        }
+      }
+    },
+    "ObservedEndpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "containerPort",
+        "hostPort",
+        "protocol"
+      ],
+      "properties": {
+        "containerPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "hostPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "protocol": {
+          "enum": [
+            "TCP",
+            "UDP"
+          ]
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "^[^\\u0000]*$"
+        }
+      }
+    },
+    "ContainerEndpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "containerPort",
+        "hostPort",
+        "protocol",
+        "address",
+        "url"
+      ],
+      "properties": {
+        "containerPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "hostPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "protocol": {
+          "enum": [
+            "TCP",
+            "UDP"
+          ]
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ContainerRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imageName",
+        "cpuCores",
+        "memoryMb"
+      ],
+      "properties": {
+        "imageName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^\\S+$"
+        },
+        "cpuCores": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "memoryMb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "diskMb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647,
+          "deprecated": true
+        },
+        "ephemeralDiskMb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "diskMode": {
+          "enum": [
+            "REQUEST_ONLY",
+            "REQUIRED"
+          ],
+          "default": "REQUEST_ONLY"
+        },
+        "ports": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ServicePort"
+              },
+              "maxItems": 32
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "type": "object",
+              "maxProperties": 128,
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "secretRefs": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SecretRef"
+              },
+              "maxItems": 32
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "volumes": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VolumeMount"
+              },
+              "maxItems": 16
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "restartPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RestartPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "healthCheck": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HealthCheck"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "maxItems": 64,
+              "minItems": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "args": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "maxItems": 64,
+              "minItems": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "diskMb"
+          ],
+          "properties": { "diskMb": {} }
+        },
+        {
+          "required": [
+            "ephemeralDiskMb"
+          ],
+          "properties": { "ephemeralDiskMb": {} }
+        }
+      ]
+    },
+    "PendingStartCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imageName",
+        "cpuCores",
+        "memoryMb",
+        "diskMb",
+        "ephemeralDiskMb",
+        "diskMode",
+        "ports",
+        "environment",
+        "secretRefs",
+        "volumes",
+        "restartPolicy",
+        "healthCheck",
+        "command",
+        "args",
+        "containerId",
+        "action",
+        "requiredCapabilities",
+        "dockerContainerId",
+        "resolvedVolumes"
+      ],
+      "properties": {
+        "imageName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^\\S+$"
+        },
+        "cpuCores": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "memoryMb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "diskMb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647,
+          "deprecated": true
+        },
+        "ephemeralDiskMb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "diskMode": {
+          "enum": [
+            "REQUEST_ONLY",
+            "REQUIRED"
+          ],
+          "default": "REQUEST_ONLY"
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ServicePort"
+          },
+          "maxItems": 32
+        },
+        "environment": {
+          "type": "object",
+          "maxProperties": 128,
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4096,
+            "pattern": "^[^\\u0000]*$"
+          }
+        },
+        "secretRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SecretRef"
+          },
+          "maxItems": 32
+        },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/VolumeMount"
+          },
+          "maxItems": 16
+        },
+        "restartPolicy": {
+          "$ref": "#/$defs/RestartPolicy"
+        },
+        "healthCheck": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HealthCheck"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "maxItems": 64,
+              "minItems": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "args": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "maxItems": 64,
+              "minItems": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "containerId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action": {
+          "const": "START"
+        },
+        "resolvedVolumes": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/ResolvedVolume" } },
+        "requiredCapabilities": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "ENVIRONMENT",
+              "COMMAND_ARGS",
+              "RESTART_POLICY",
+              "SECRET_ENV",
+              "SECRET_FILE",
+              "NAMED_VOLUMES",
+              "HEALTH_EXEC",
+              "HEALTH_HTTP"
+            ]
+          },
+          "maxItems": 8,
+          "uniqueItems": true
+        },
+        "dockerContainerId": {
+          "type": "null"
+        }
+      }
+    },
+    "ContainerResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imageName",
+        "cpuCores",
+        "memoryMb",
+        "diskMb",
+        "ephemeralDiskMb",
+        "diskMode",
+        "ports",
+        "environment",
+        "secretRefs",
+        "volumes",
+        "restartPolicy",
+        "healthCheck",
+        "command",
+        "args",
+        "id",
+        "status",
+        "nodeId",
+        "dockerContainerId",
+        "errorMessage",
+        "createdAt",
+        "endpoints",
+        "health"
+      ],
+      "properties": {
+        "imageName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^\\S+$"
+        },
+        "cpuCores": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "memoryMb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "diskMb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647,
+          "deprecated": true
+        },
+        "ephemeralDiskMb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "diskMode": {
+          "enum": [
+            "REQUEST_ONLY",
+            "REQUIRED"
+          ],
+          "default": "REQUEST_ONLY"
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ServicePort"
+          },
+          "maxItems": 32
+        },
+        "environment": {
+          "type": "object",
+          "maxProperties": 128,
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4096,
+            "pattern": "^[^\\u0000]*$"
+          }
+        },
+        "secretRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SecretRef"
+          },
+          "maxItems": 32
+        },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/VolumeMount"
+          },
+          "maxItems": 16
+        },
+        "restartPolicy": {
+          "$ref": "#/$defs/RestartPolicy"
+        },
+        "healthCheck": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HealthCheck"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "maxItems": 64,
+              "minItems": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "args": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "maxItems": 64,
+              "minItems": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "SCHEDULED",
+            "RUNNING",
+            "STOPPING",
+            "STOPPED",
+            "REMOVING",
+            "REMOVED",
+            "ERROR",
+            "FAILED"
+          ]
+        },
+        "nodeId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dockerContainerId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[^\\u0000]*$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "errorMessage": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "^[^\\u0000]*$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContainerEndpoint"
+          },
+          "maxItems": 64
+        },
+        "health": {
+          "$ref": "#/$defs/HealthObservation"
+        }
+      }
+    },
+    "ResolvedVolume": {"type":"object","additionalProperties":false,"required":["volumeId","dockerName","nodeId","volumeSizeMb","diskMode","retentionPolicy"],"properties":{"volumeId":{"type":"string","format":"uuid"},"dockerName":{"type":"string","pattern":"^cloudbox-volume-[0-9a-f-]{36}$"},"nodeId":{"type":"string","format":"uuid"},"volumeSizeMb":{"anyOf":[{"type":"integer","minimum":1,"maximum":2147483647},{"type":"null"}]},"diskMode":{"enum":["REQUEST_ONLY","REQUIRED"]},"retentionPolicy":{"const":"RETAIN"}}},
+    "ContainerStatusUpdateRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "RUNNING",
+            "STOPPED",
+            "REMOVED",
+            "ERROR"
+          ]
+        },
+        "dockerContainerId": {
+          "anyOf": [
+            { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[^\\u0000]*$" },
+            { "type": "null" }
+          ]
+        },
+        "errorMessage": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "^[^\\u0000]*$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "endpoints": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ObservedEndpoint"
+              },
+              "maxItems": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "health": {
+          "$ref": "#/$defs/HealthObservation"
+        }
+      }
+    }
+  }
+}
